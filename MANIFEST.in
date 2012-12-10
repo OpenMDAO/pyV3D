@@ -1,0 +1,3 @@
+graft src/pyV3D/sphinx_build/html
+recursive-include src/pyV3D/test *.py
+

@@ -1,0 +1,14 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module wv ! in 
+    interface  ! in :wv
+        type unknown_type ! in :wv:wv.c
+            type unknown_type ! in :wv:wv.c:unknown_type
+            end type unknown_type
+        end type unknown_type
+    end interface 
+end python module wv
+
+! This file was auto-generated with f2py (version:2).
+! See http://cens.ioc.ee/projects/f2py2e/

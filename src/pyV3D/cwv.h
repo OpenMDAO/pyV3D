@@ -128,12 +128,4 @@ typedef struct {
   wvGPrim *gPrims;              /* the graphics primitives */
 } wvContext;
 
-
-/* Function prototypes from wv.a */
-
-/*@null@*/ wvContext *
-wv_createContext(int bias, float fov, float zNear, float zFar, float *eye,
-                 float *center, float *up)
-                 
-
 #endif  /*_WSSS_H_*/

@@ -1,7 +1,13 @@
 
 # file: cwv.pxd
 
-cdef extern from "cwv.h":
+from numpy import ndarray
 
-  wvContext* wv_createContext(int bias, float fov, float zNear, float zFar, float *eye,
-                               float *center, float *up)
+cdef extern from "wv.h":
+
+    ctypedef struct wvContext:
+        pass
+
+    wvContext* wv_createContext(int bias, float fov,
+                                float zNear, float zFar, float *eye,
+                                float *center, float *up)

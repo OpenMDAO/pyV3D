@@ -7,8 +7,8 @@ from Cython.Distutils import build_ext
 
 setup(
     cmdclass = {'build_ext': build_ext},
-    ext_modules = [Extension("wv", ["src/pyV3D/wv.c"]),
-                   Extension("pyV3D", ["src/pyV3D/pyV3D.pyx"])]
+    ext_modules = [Extension("wv", ["wv.c"]),
+                   Extension("pyV3D", ["pyV3D.pyx"])]
 )
 
 ##from numpy.distutils.core import Extension, setup

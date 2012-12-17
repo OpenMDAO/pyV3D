@@ -15,7 +15,7 @@
 #include <math.h>
 #include <unistd.h>
 
-#include "wsss.h"
+#include "wv.h"
 
 /*@null@*/ /*@out@*/ /*@only@*/ void *
 wv_alloc(int nbytes)

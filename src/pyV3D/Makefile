@@ -4,10 +4,10 @@ OBJS = wv.o
 
 wv_wrap.a:	$(OBJS)
 	-rm wv.a
-	ar wv.a $(OBJS)
+	ar rcs libwv.a $(OBJS)
 	$(RANLB)
 
-$(OBJS): wsss.h
+$(OBJS): wv.h
 
 .c.o:
 	gcc -c $(COPTS) -DLWS_NO_FORK  $< 

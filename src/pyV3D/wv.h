@@ -135,6 +135,8 @@ typedef struct {
 /*@null@*/ wvContext *
 wv_createContext(int bias, float fov, float zNear, float zFar, float *eye,
                  float *center, float *up);
+                 
+int wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct);
  
 
 #endif  /*_WSSS_H_*/

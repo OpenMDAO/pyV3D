@@ -69,5 +69,5 @@ cdef extern from "wv.h":
                                 float zNear, float zFar, float *eye,
                                 float *center, float *up)
 
-    #int wv_setData(int type, int len, void *data, 
-    #               int VBOtype, wvData *dstruct)
+    int wv_setData(int type, int len, void *data, 
+                   int VBOtype, wvData *dstruct)

@@ -99,38 +99,78 @@ cdef class WV_Wrapper:
         
     @cython.boundscheck(False)
     @cython.wraparound(False)        
-    def setdata_vertices(self,
-                         np.ndarray[float, ndim=1, mode="c"] data not None,
-                         ):
-        '''Define the vertices for facets in a VBO.
+    def add_GPrim_solid(self, name, attr, offset,
+                        np.ndarray[float, ndim=1, mode="c"] vertices not None,
+                        np.ndarray[int, ndim=1, mode="c"] indices not None,
+                        np.ndarray[unsigned char, ndim=1, mode="c"] colors not None,
+                        np.ndarray[float, ndim=1, mode="c"] normals not None
+                        ):
+        '''Do me a VBO solid.
         '''
+        cdef int ndata, error_code, nitems
+        cdef cwv.wvData items[5]
         
-        cdef int ndata, error_code
-        cdef cwv.wvData items[2]
+        nitems = 4
         
-        ndata = data.shape[0]/3
+        ndata = vertices.shape[0]/3
         print "Processing %d vertices." % ndata
         
-        error_code = cwv.wv_setData(WV_REAL32, ndata, &data[0], 
-                                    WV_VERTICES, items)
-                                    
-        return error_code
+        error_code = cwv.wv_setData(WV_REAL32, ndata, &vertices[0], 
+                                    WV_VERTICES, &items[0])
+        print "Returned Status:", error_code
+        
+        ndata = indices.shape[0]
+        print "Processing %d indices." % ndata
+        
+        error_code = cwv.wv_setData(WV_INT32, ndata, &indices[0], 
+                                    WV_INDICES, &items[1])
+        print "Returned Status:", error_code
+        
+        ndata = colors.shape[0]/3
+        print "Processing %d colors." % ndata
+        
+        error_code = cwv.wv_setData(WV_UINT8, ndata, &colors[0], 
+                                    WV_COLORS, &items[2])
+        print "Returned Status:", error_code
+        
+        ndata = normals.shape[0]/3
+        print "Processing %d normals." % ndata
+        
+        error_code = cwv.wv_setData(WV_REAL32, ndata, &normals[0], 
+                                    WV_NORMALS, &items[3])
+        print "Returned Status:", error_code
+        
+        # Add the primary
+        print "Adding the GPrim Object"
+        error_code = cwv.wv_addGPrim(self.context, name, WV_TRIANGLE, attr, 
+                                      nitems, items)
+        print "Returned Status:", error_code
+        print "GPrim %s added." % self.context.gPrims.name
+        
+        print "There are %d primaries in context" % self.context.nGPrim
+        
         
     @cython.boundscheck(False)
     @cython.wraparound(False)        
-    def setdata_normals(self,
-                       np.ndarray[float, ndim=1, mode="c"] data not None,
-                       ):
-        '''Define the outward pointing normals for facets in a VBO.
+    def sendGPrim(self, void *wsi, unsigned char *buf, flag, 
+                  int (*wv_sendBinaryData)(void*, unsigned char*, int)):
+        '''sends the appropriate message(s) to an individual client (browser)
+        should be called by the server for every current client instance
+        
+        wsi: (void*)
+            blind pointer that gets passed on to the send function
+            
+        buf: (unsigned char *)
+            the allocated buffer to pack the message
+            
+        flag: int
+             what to do:
+               1 - send init message
+               0 - send only gPrim updates
+              -1 - send the first suite of gPrims
+                
+         wv_sendBinaryData(wsi, buf, len): function
+             callback function to send the packets
         '''
         
-        cdef int ndata, error_code
-        cdef cwv.wvData items[5]
-        
-        ndata = data.shape[0]/3
-        print "Processing %d vertices." % ndata
-        
-        error_code = cwv.wv_setData(WV_REAL32, ndata, &data[0], 
-                                    WV_VERTICES, items)
-                                    
-        return error_code        
+        cwv.wv_sendGPrim(wsi, self.context, &buf[0], flag, &wv_sendBinaryData[0])

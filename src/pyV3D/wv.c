@@ -17,6 +17,9 @@
 
 #include "wv.h"
 
+/*extern wv_sendBinaryData(void *, unsigned char *, int); */
+
+
 /*@null@*/ /*@out@*/ /*@only@*/ void *
 wv_alloc(int nbytes)
 {
@@ -2115,4 +2118,497 @@ wv_removeGPrim(wvContext *cntxt, int index)
   cntxt->dataAccess = 0;
 }
 
+/* *********************** Server Functions ************************* */
+
+
+static void
+wv_writeBuf(void *wsi, unsigned char *buf, int npack, int *iBuf,
+            int (*wv_sendBinaryData)(void*, unsigned char*, int))
+{
+  if (*iBuf+npack <= BUFLEN-4) return;
+  
+  printf("  iBuf = %d, BUFLEN = %d\n", *iBuf, BUFLEN);
+  buf[*iBuf  ] = 0;
+  buf[*iBuf+1] = 0;
+  buf[*iBuf+2] = 0;
+  buf[*iBuf+3] = 0;             /* continue opcode */
+  *iBuf += 4;
+  if (wv_sendBinaryData(wsi, buf, *iBuf) < 0)
+    fprintf(stderr, "ERROR Sending Binary Data");
+  *iBuf = 0;
+}
+
+
+static void
+wv_writeGPrim(wvGPrim *gp, void *wsi, unsigned char *buf, int *iBuf,
+            int (*wv_sendBinaryData)(void*, unsigned char*, int))
+{
+  int            i, j, n, npack, i4;
+  unsigned char  vflag;
+  unsigned char  *c1 = (unsigned char *)  &i4;  
+  
+  for (i = 0; i < gp->nStripe; i++) {
+    npack = 12+gp->nameLen;
+    vflag = WV_VERTICES;
+    if ((gp->stripes[i].nsVerts  == 0) || 
+        (gp->stripes[i].vertices == NULL)) continue;
+    npack += 3*4*gp->stripes[i].nsVerts;
+    if ((gp->stripes[i].nsIndices != 0) && 
+        (gp->stripes[i].sIndice2   != NULL)) {
+      npack += 2*gp->stripes[i].nsIndices + 4;
+      if ((gp->stripes[i].nsIndices%2) != 0) npack += 2;
+      vflag |= WV_INDICES;
+    }
+    if (gp->stripes[i].colors != NULL) {
+      npack += 3*gp->stripes[i].nsVerts + 4;
+      if (((3*gp->stripes[i].nsVerts)%4) != 0)
+         npack += 4 - (3*gp->stripes[i].nsVerts)%4;
+      vflag |= WV_COLORS;
+    }
+    if (gp->stripes[i].normals != NULL) {
+      npack += 3*4*gp->stripes[i].nsVerts + 4;
+      vflag |= WV_NORMALS;
+    }
+    if ((gp->gtype == WV_LINE) && (gp->normals != NULL) && (i == 0)) {
+      npack += 3*4*gp->nlIndex + 4;
+      vflag |= WV_NORMALS;
+    }
+    wv_writeBuf(wsi, buf, npack, iBuf, &wv_sendBinaryData);
+    if (npack > BUFLEN) {
+      printf(" Oops! npack = %d  BUFLEN = %d\n", npack, BUFLEN);
+      exit(1);
+    }
+
+    n     = *iBuf;
+    i4    = i;
+    c1[3] = 3;                          /* new data opcode */
+    memcpy(&buf[n], c1, 4);
+    n    += 4;
+    i4    = gp->nameLen;
+    c1[2] = vflag;
+    c1[3] = gp->gtype;
+    memcpy(&buf[n], c1, 4);
+    memcpy(&buf[n+4], gp->name, gp->nameLen);
+    n += 4+gp->nameLen;
+    i4 = 3*gp->stripes[i].nsVerts;
+    memcpy(&buf[n], &i4, 4);
+    n += 4;
+    memcpy(&buf[n], gp->stripes[i].vertices, 3*4*gp->stripes[i].nsVerts);
+    n += 3*4*gp->stripes[i].nsVerts;
+    if ((gp->stripes[i].nsIndices != 0) && 
+        (gp->stripes[i].sIndice2  != NULL)) {
+      i4 = gp->stripes[i].nsIndices;
+      memcpy(&buf[n], &i4, 4);
+      n += 4;      
+      memcpy(&buf[n], gp->stripes[i].sIndice2, 2*gp->stripes[i].nsIndices);
+      n += 2*gp->stripes[i].nsIndices;
+      if ((gp->stripes[i].nsIndices%2) != 0) {
+        i4 = 0;
+        memcpy(&buf[n], &i4, 2);
+        n += 2;
+      }
+    }
+    if (gp->stripes[i].colors != NULL) {
+      i4 = 3*gp->stripes[i].nsVerts;
+      memcpy(&buf[n], &i4, 4);
+      n += 4;
+      memcpy(&buf[n], gp->stripes[i].colors, 3*gp->stripes[i].nsVerts);
+      n += 3*gp->stripes[i].nsVerts;
+      if (((3*gp->stripes[i].nsVerts)%4) != 0) {
+        j  = 4 - (3*gp->stripes[i].nsVerts)%4;
+        i4 = 0;
+        memcpy(&buf[n], &i4, j);
+        n += j;
+      }
+    }
+    if (gp->stripes[i].normals != NULL) {
+      i4 = 3*gp->stripes[i].nsVerts;
+      memcpy(&buf[n], &i4, 4);
+      n += 4;
+      memcpy(&buf[n], gp->stripes[i].normals, 3*4*gp->stripes[i].nsVerts);
+      n += 3*4*gp->stripes[i].nsVerts;
+    }
+    /* line decorations -- no stripes */
+    if ((gp->gtype == WV_LINE) && (gp->normals != NULL) && (i == 0)) {
+      i4 = 3*gp->nlIndex;
+      memcpy(&buf[n], &i4, 4);
+      n += 4;
+      memcpy(&buf[n], gp->normals, 3*4*gp->nlIndex);
+      n += 3*4*gp->nlIndex;
+    }    
+    *iBuf += npack;
+    
+    if ((gp->stripes[i].npIndices != 0) &&
+        (gp->stripes[i].pIndice2  != NULL)) {
+      npack = 12+gp->nameLen + 2*gp->stripes[i].npIndices;
+      if ((gp->stripes[i].npIndices%2) != 0) npack += 2;
+      wv_writeBuf(wsi, buf, npack, iBuf, &wv_sendBinaryData);
+      n     = *iBuf;
+      i4    = i;
+      c1[3] = 3;                        /* new data opcode */
+      memcpy(&buf[n], c1, 4);
+      n    += 4;
+      i4    = gp->nameLen;
+      c1[2] = WV_INDICES;
+      c1[3] = 0;                        /* local gtype */
+      memcpy(&buf[n], c1, 4);
+      memcpy(&buf[n+4], gp->name, gp->nameLen);
+      n += 4+gp->nameLen;
+      i4 = gp->stripes[i].npIndices;
+      memcpy(&buf[n], &i4, 4);
+      n += 4; 
+      memcpy(&buf[n], gp->stripes[i].pIndice2, 2*gp->stripes[i].npIndices);
+      if ((gp->stripes[i].npIndices%2) != 0) {
+        i4 = 0;
+        memcpy(&buf[n], &i4, 2);
+        n += 2;
+      }
+      *iBuf += npack;
+    }
+
+    if ((gp->stripes[i].nlIndices != 0) &&
+        (gp->stripes[i].lIndice2  != NULL)) {
+      npack = 12+gp->nameLen + 2*gp->stripes[i].nlIndices;
+      if ((gp->stripes[i].nlIndices%2) != 0) npack += 2;
+      wv_writeBuf(wsi, buf, npack, iBuf, &wv_sendBinaryData);
+      n     = *iBuf;
+      i4    = i;
+      c1[3] = 3;                        /* new data opcode */
+      memcpy(&buf[n], c1, 4);
+      n    += 4;
+      i4    = gp->nameLen;
+      c1[2] = WV_INDICES;
+      c1[3] = 1;                        /* local gtype */
+      memcpy(&buf[n], c1, 4);
+      memcpy(&buf[n+4], gp->name, gp->nameLen);
+      n += 4+gp->nameLen;
+      i4 = gp->stripes[i].nlIndices;
+      memcpy(&buf[n], &i4, 4);
+      n += 4; 
+      memcpy(&buf[n], gp->stripes[i].lIndice2, 2*gp->stripes[i].nlIndices);
+      if ((gp->stripes[i].nlIndices%2) != 0) {
+        i4 = 0;
+        memcpy(&buf[n], &i4, 2);
+        n += 2;
+      }
+      *iBuf += npack;
+    }
+
+  }
+}
+
+
+/* sends the appropriate message(s) to an individual client (browser)
+ *
+ * should be called by the server for every current client instance
+ *
+ * where: wsi   - blind pointer that gets passed on to the send function
+ *        cntxt - the wvContext we are using
+ *        buf   - the allocated buffer to pack the message
+ *        flag  - what to do:
+ *                 1 - send init message
+ *                 0 - send only gPrim updates
+ *                -1 - send the first suite of gPrims
+ *
+ * uses the call-back wv_sendBinaryData(wsi, buf, len) to send the packets
+ *
+ */
+void
+wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag, 
+             int (*wv_sendBinaryData)(void*, unsigned char*, int))
+{
+  int            i, j, k, iBuf, npack, i4;
+  unsigned short *s2 = (unsigned short *) &i4;
+  unsigned char  *c1 = (unsigned char *)  &i4;
+  wvGPrim        *gp;
+  
+  /* init message */
+  if (flag == 1) {
+    buf[0] = 0;
+    buf[1] = 0;
+    buf[2] = 0;
+    buf[3] = 8;                         /* init opcode */
+    memcpy(&buf[ 4], &cntxt->fov,     4);
+    memcpy(&buf[ 8], &cntxt->zNear,   4);
+    memcpy(&buf[12], &cntxt->zFar,    4);
+    memcpy(&buf[16],  cntxt->eye,    12);
+    memcpy(&buf[28],  cntxt->center, 12);
+    memcpy(&buf[40],  cntxt->up,     12);
+    /* end of frame marker */
+    buf[52] = 0;
+    buf[53] = 0;
+    buf[54] = 0;
+    buf[55] = 7;                        /* eof opcode */
+    if (wv_sendBinaryData(wsi, buf, 56) < 0)
+      fprintf(stderr, "ERROR sending Binary Data");
+    return;
+  }
+  if (cntxt->gPrims == NULL) return;
+
+  /* any changes? */
+  if ((flag == 0) && (cntxt->cleanAll == 0)) {
+    for (i = 0; i < cntxt->nGPrim; i++) {
+      gp = &cntxt->gPrims[i];
+      if (gp->updateFlg != 0) break;
+    }
+    if (i == cntxt->nGPrim) return;
+  }
+  
+  /* put out the new data*/
+
+  iBuf = 0;
+  if (cntxt->cleanAll != 0) {
+    npack = 8;
+    wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+    buf[iBuf  ] = 0;
+    buf[iBuf+1] = 0;
+    buf[iBuf+2] = 0;
+    buf[iBuf+3] = 2;		/* delete opcode for all */
+    buf[iBuf+4] = 0;
+    buf[iBuf+5] = 0;
+    buf[iBuf+6] = 0;
+    buf[iBuf+7] = 0;
+    iBuf += npack;
+    cntxt->cleanAll = 0;
+  }
+
+  for (i = 0; i < cntxt->nGPrim; i++) {
+    gp = &cntxt->gPrims[i];
+    if ((gp->updateFlg == 0) && (flag != -1)) continue;  
+    if ((gp->updateFlg == WV_DELETE) && (flag == -1)) continue;
+/*  printf(" flag = %d,  %d  gp->updateFlg = %d\n", 
+           flag, i, gp->updateFlg); */
+    if  (gp->updateFlg == WV_DELETE) {
+    
+      /* delete the gPrim */
+      npack = 8 + gp->nameLen;
+      wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+      buf[iBuf  ] = 0;
+      buf[iBuf+1] = 0;
+      buf[iBuf+2] = 0;
+      buf[iBuf+3] = 2;                  /* delete opcode */
+      s2[0]       = gp->nameLen;
+      s2[1]       = 0;
+      memcpy(&buf[iBuf+4], s2,       4);
+      memcpy(&buf[iBuf+8], gp->name, gp->nameLen);
+      iBuf += npack;
+      gp->updateFlg |= WV_DONE;
+
+    } else if ((gp->updateFlg == WV_PCOLOR) || (flag == -1)) {
+    
+      /* new gPrim */
+      npack = 8 + gp->nameLen + 16;
+      if (gp->gtype > 0) npack += 16;
+      if (gp->gtype > 1) npack += 36;
+      wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+      i4    = gp->nStripe;
+      c1[3] = 1;                        /* new opcode */
+      memcpy(&buf[iBuf  ], c1, 4);
+      i4    = gp->nameLen;
+      c1[2] = 0;
+      c1[3] = gp->gtype;
+      memcpy(&buf[iBuf+4], c1, 4);
+      memcpy(&buf[iBuf+8], gp->name, gp->nameLen);
+      iBuf += 8 + gp->nameLen;
+      memcpy(&buf[iBuf  ], &gp->attrs,   4);
+      iBuf += 4;
+      memcpy(&buf[iBuf  ], &gp->pSize,   4);
+      memcpy(&buf[iBuf+4],  gp->pColor, 12);
+      iBuf += 16;
+      if (gp->gtype > 0) {
+        memcpy(&buf[iBuf   ], &gp->lWidth,  4);
+        memcpy(&buf[iBuf+ 4],  gp->lColor, 12);
+        memcpy(&buf[iBuf+16],  gp->fColor, 12);
+        memcpy(&buf[iBuf+28],  gp->bColor, 12);
+        iBuf += 40;
+      }
+      if (gp->gtype > 1) {
+        memcpy(&buf[iBuf], gp->normal, 12);
+        iBuf += 12;
+      }
+      wv_writeGPrim(gp, wsi, buf, &iBuf, &wv_sendBinaryData); 
+
+    } else {
+    
+      /* updated gPrim */
+
+      if ((gp->updateFlg&WV_VERTICES) != 0)
+        for (j = 0; j < gp->nStripe; j++) {
+          if ((gp->stripes[j].nsVerts  == 0) || 
+              (gp->stripes[j].vertices == NULL)) continue;
+          npack = 12 + gp->nameLen + 3*4*gp->stripes[j].nsVerts;
+          wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+          i4    = j;
+          c1[3] = 4;                        /* edit opcode */
+          memcpy(&buf[iBuf   ], c1, 4);
+          i4    = gp->nameLen;
+          c1[2] = WV_VERTICES;
+          c1[3] = gp->gtype;
+          memcpy(&buf[iBuf+ 4], c1, 4);
+          memcpy(&buf[iBuf+ 8], gp->name, gp->nameLen);
+          i4    = 3*gp->stripes[j].nsVerts;
+          memcpy(&buf[iBuf+ 8+gp->nameLen], &i4, 4);
+          memcpy(&buf[iBuf+12+gp->nameLen], gp->stripes[j].vertices,
+                 3*4*gp->stripes[j].nsVerts);
+          iBuf += npack;
+        }
+
+      if ((gp->updateFlg&WV_INDICES) != 0)
+        for (j = 0; j < gp->nStripe; j++) {
+          if ((gp->stripes[j].nsIndices == 0) || 
+              (gp->stripes[j].sIndice2  == NULL)) continue;
+          npack = 12 + gp->nameLen + 2*gp->stripes[j].nsIndices;
+          if ((gp->stripes[j].nsIndices%2) != 0) npack += 2;
+          wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+          i4    = j;
+          c1[3] = 4;                        /* edit opcode */
+          memcpy(&buf[iBuf   ], c1, 4);
+          i4    = gp->nameLen;
+          c1[2] = WV_INDICES;
+          c1[3] = gp->gtype;
+          memcpy(&buf[iBuf+ 4], c1, 4);
+          memcpy(&buf[iBuf+ 8], gp->name, gp->nameLen);
+          i4    = gp->stripes[j].nsIndices;
+          memcpy(&buf[iBuf+ 8+gp->nameLen], &i4, 4);
+          memcpy(&buf[iBuf+12+gp->nameLen], gp->stripes[j].sIndice2,
+                 2*gp->stripes[j].nsIndices);
+          if ((gp->stripes[j].nsIndices%2) != 0) {
+            i4 = 0;
+            memcpy(&buf[iBuf+npack-2], &i4, 2);
+          }
+          iBuf += npack;
+        }
+
+      if ((gp->updateFlg&WV_COLORS) != 0)
+        for (j = 0; j < gp->nStripe; j++) {
+          if ((gp->stripes[j].nsVerts == 0) || 
+              (gp->stripes[j].colors  == NULL)) continue;
+          npack = 12 + gp->nameLen + 3*gp->stripes[j].nsVerts;
+          if (((3*gp->stripes[j].nsVerts)%4) != 0)
+            npack += 4 - (3*gp->stripes[j].nsVerts)%4;
+          wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+          i4    = j;
+          c1[3] = 4;                        /* edit opcode */
+          memcpy(&buf[iBuf   ], c1, 4);
+          i4    = gp->nameLen;
+          c1[2] = WV_COLORS;
+          c1[3] = gp->gtype;
+          memcpy(&buf[iBuf+ 4], c1, 4);
+          memcpy(&buf[iBuf+ 8], gp->name, gp->nameLen);
+          i4    = 3*gp->stripes[j].nsVerts;
+          memcpy(&buf[iBuf+ 8+gp->nameLen], &i4, 4);
+          memcpy(&buf[iBuf+12+gp->nameLen], gp->stripes[j].colors,
+                 3*gp->stripes[j].nsVerts);
+          if (((3*gp->stripes[j].nsVerts)%4) != 0) {
+            k  = 4 - (3*gp->stripes[j].nsVerts)%4;
+            i4 = 0;
+            memcpy(&buf[iBuf+npack-k], &i4, k);
+          }
+          iBuf += npack;
+        }
+        
+      if ((gp->updateFlg&WV_NORMALS) != 0)
+        if (gp->gtype == WV_TRIANGLE) {
+          for (j = 0; j < gp->nStripe; j++) {
+            if ((gp->stripes[j].nsVerts  == 0) || 
+                (gp->stripes[j].vertices == NULL)) continue;
+            npack = 12 + gp->nameLen + 3*4*gp->stripes[j].nsVerts;
+            wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+            i4    = j;
+            c1[3] = 4;                      /* edit opcode */
+            memcpy(&buf[iBuf   ], c1, 4);
+            i4    = gp->nameLen;
+            c1[2] = WV_NORMALS;
+            c1[3] = gp->gtype;
+            memcpy(&buf[iBuf+ 4], c1, 4);
+            memcpy(&buf[iBuf+ 8], gp->name, gp->nameLen);
+            i4    = 3*gp->stripes[j].nsVerts;
+            memcpy(&buf[iBuf+ 8+gp->nameLen], &i4, 4);
+            memcpy(&buf[iBuf+12+gp->nameLen], gp->stripes[j].normals,
+                   3*4*gp->stripes[j].nsVerts);
+            iBuf += npack;
+          }
+        } else if (gp->gtype == WV_LINE) {
+          /* line decorations */
+          npack = 12 + gp->nameLen + 3*4*gp->nlIndex;
+          wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+          i4    = 0;
+          c1[3] = 4;                        /* edit opcode */
+          memcpy(&buf[iBuf   ], c1, 4);
+          i4    = gp->nameLen;
+          c1[2] = WV_NORMALS;
+          c1[3] = gp->gtype;
+          memcpy(&buf[iBuf+ 4], c1, 4);
+          memcpy(&buf[iBuf+ 8], gp->name, gp->nameLen);
+          i4    = 3*gp->nlIndex;
+          memcpy(&buf[iBuf+ 8+gp->nameLen], &i4, 4);
+          memcpy(&buf[iBuf+12+gp->nameLen], gp->normals, 3*4*gp->nlIndex);
+          iBuf += npack;
+        }
+        
+      if ((gp->updateFlg&WV_PINDICES) != 0)
+        for (j = 0; j < gp->nStripe; j++) {
+          if ((gp->stripes[j].npIndices == 0) || 
+              (gp->stripes[j].pIndice2  == NULL)) continue;
+          npack = 12 + gp->nameLen + 2*gp->stripes[j].npIndices;
+          if ((gp->stripes[j].npIndices%2) != 0) npack += 2;
+          wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+          i4    = j;
+          c1[3] = 4;                        /* edit opcode */
+          memcpy(&buf[iBuf   ], c1, 4);
+          i4    = gp->nameLen;
+          c1[2] = WV_INDICES;
+          c1[3] = 0;
+          memcpy(&buf[iBuf+ 4], c1, 4);
+          memcpy(&buf[iBuf+ 8], gp->name, gp->nameLen);
+          i4    = gp->stripes[j].npIndices;
+          memcpy(&buf[iBuf+ 8+gp->nameLen], &i4, 4);
+          memcpy(&buf[iBuf+12+gp->nameLen], gp->stripes[j].pIndice2,
+                 2*gp->stripes[j].npIndices);
+          if ((gp->stripes[j].npIndices%2) != 0) {
+            i4 = 0;
+            memcpy(&buf[iBuf+npack-2], &i4, 2);
+          }
+          iBuf += npack;
+        }
+
+      if ((gp->updateFlg&WV_LINDICES) != 0)
+        for (j = 0; j < gp->nStripe; j++) {
+          if ((gp->stripes[j].nlIndices == 0) || 
+              (gp->stripes[j].lIndice2  == NULL)) continue;
+          npack = 12 + gp->nameLen + 2*gp->stripes[j].nlIndices;
+          if ((gp->stripes[j].nlIndices%2) != 0) npack += 2;
+          wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+          i4    = j;
+          c1[3] = 4;                        /* edit opcode */
+          memcpy(&buf[iBuf   ], c1, 4);
+          i4    = gp->nameLen;
+          c1[2] = WV_INDICES;
+          c1[3] = 1;
+          memcpy(&buf[iBuf+ 4], c1, 4);
+          memcpy(&buf[iBuf+ 8], gp->name, gp->nameLen);
+          i4    = gp->stripes[j].nlIndices;
+          memcpy(&buf[iBuf+ 8+gp->nameLen], &i4, 4);
+          memcpy(&buf[iBuf+12+gp->nameLen], gp->stripes[j].lIndice2,
+                 2*gp->stripes[j].nlIndices);
+          if ((gp->stripes[j].nlIndices%2) != 0) {
+            i4 = 0;
+            memcpy(&buf[iBuf+npack-2], &i4, 2);
+          }
+          iBuf += npack;
+        }
+
+    }
+
+  }
+  /* end of frame marker */
+  buf[iBuf  ] = 0;
+  buf[iBuf+1] = 0;
+  buf[iBuf+2] = 0;
+  buf[iBuf+3] = 7;                      /* eof opcode */
+  iBuf       += 4;
+  if (wv_sendBinaryData(wsi, buf, iBuf) < 0)
+    fprintf(stderr, "ERROR Sending Binary Data");
+
+}
 

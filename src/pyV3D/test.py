@@ -1,6 +1,6 @@
 
 from pyV3D import WV_Wrapper
-from numpy import array, float32
+from numpy import array, float32, int32, uint8
 
 
 myWV = WV_Wrapper()
@@ -58,5 +58,8 @@ indices = [
 
 
 vertices = array(vertices, dtype=float32)
-code = myWV.setdata_vertices(vertices)
-print "Returned:", code
+indices = array(indices, dtype=int32)
+colors = array(colors, dtype=uint8)
+normals = array(normals, dtype=float32)
+
+myWV.add_GPrim_solid("MyBox", 0, 0, vertices, indices, colors, normals)

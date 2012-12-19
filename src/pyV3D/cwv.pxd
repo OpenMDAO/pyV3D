@@ -71,3 +71,9 @@ cdef extern from "wv.h":
 
     int wv_setData(int type, int len, void *data, 
                    int VBOtype, wvData *dstruct)
+                   
+    int wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs, 
+                    int nItems, wvData *items)
+                    
+    void wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag, 
+                      int (*wv_sendBinaryData)(void*, unsigned char*, int))

@@ -136,7 +136,12 @@ typedef struct {
 wv_createContext(int bias, float fov, float zNear, float zFar, float *eye,
                  float *center, float *up);
                  
-int wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct);
+int
+wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct);
+
+int
+wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs, 
+            int nItems, wvData *items);
  
 
 #endif  /*_WSSS_H_*/

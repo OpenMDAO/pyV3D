@@ -4,6 +4,10 @@
 #
 # Tutorial for passing a numpy array into a function:
 #     http://wiki.cython.org/tutorials/NumpyPointerToC
+#
+# Help for passing a python function into a C library
+#     http://stackoverflow.com/questions/8800838/how-to-pass-a-function-pointer-to-an-external-program-in-cython?rq=1
+
 
 from array import array
 
@@ -43,6 +47,8 @@ WV_UINT16 = 2
 WV_INT32 = 3
 WV_REAL32 = 4
 WV_REAL64 = 5
+
+ctypedef int (*callback) (void*, unsigned char*, int) 
 
 cdef class WV_Wrapper:
 
@@ -153,7 +159,8 @@ cdef class WV_Wrapper:
     @cython.boundscheck(False)
     @cython.wraparound(False)        
     def sendGPrim(self, void *wsi, unsigned char *buf, flag, 
-                  int (*wv_sendBinaryData)(void*, unsigned char*, int)):
+                  wv_SendBinaryData):
+                  #int (*wv_sendBinaryData)(void*, unsigned char*, int) except -1):
         '''sends the appropriate message(s) to an individual client (browser)
         should be called by the server for every current client instance
         
@@ -173,4 +180,8 @@ cdef class WV_Wrapper:
              callback function to send the packets
         '''
         
-        cwv.wv_sendGPrim(wsi, self.context, &buf[0], flag, &wv_sendBinaryData[0])
+        cdef myfuncptr func
+        func = (<callback*><size_t>addressof(wv_SendBinaryData))[0]
+        
+        #cwv.wv_sendGPrim(wsi, self.context, &buf[0], flag, &wv_sendBinaryData[0])
+        cwv.wv_sendGPrim(wsi, self.context, &buf[0], flag, func)

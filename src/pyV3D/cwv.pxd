@@ -75,5 +75,7 @@ cdef extern from "wv.h":
     int wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs, 
                     int nItems, wvData *items)
                     
-    void wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag, 
-                      int (*wv_sendBinaryData)(void*, unsigned char*, int))
+    ctypedef int (*cy_callback) (void *wsi, unsigned char *buf, int ibuf, void *f) 
+
+    void wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
+                      cy_callback callback1, void* callback2)

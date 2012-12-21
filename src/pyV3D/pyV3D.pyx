@@ -7,9 +7,11 @@
 #
 # Help for passing a python function into a C library
 #     http://stackoverflow.com/questions/8800838/how-to-pass-a-function-pointer-to-an-external-program-in-cython?rq=1
+#
+# Passing string (char*) into Cython
+#     http://docs.cython.org/src/tutorial/strings.html
 
-
-from array import array
+from ctypes import addressof
 
 import cython
 import numpy as np
@@ -48,8 +50,17 @@ WV_INT32 = 3
 WV_REAL32 = 4
 WV_REAL64 = 5
 
-ctypedef int (*callback) (void*, unsigned char*, int) 
+#ctypedef int (*callback) (void*, unsigned char*, int, void*) 
+ctypedef int (*cy_callback) (void *wsi, unsigned char *buf, int ibuf, void *f) 
 
+cdef int callback(void *wsi, bytes buf, int ibuf, void *f):
+    '''This Cython function wraps the python return function, and
+    passes whatever it needs to.
+    '''
+    py_wsi = 0
+    status = (<object>f)(py_wsi, buf, ibuf)
+    return status        
+    
 cdef class WV_Wrapper:
 
     cdef cwv.wvContext* context
@@ -158,8 +169,7 @@ cdef class WV_Wrapper:
         
     @cython.boundscheck(False)
     @cython.wraparound(False)        
-    def sendGPrim(self, void *wsi, unsigned char *buf, flag, 
-                  wv_SendBinaryData):
+    def send_GPrim(self, wsi, bytes buf, flag, wv_SendBinaryData):
                   #int (*wv_sendBinaryData)(void*, unsigned char*, int) except -1):
         '''sends the appropriate message(s) to an individual client (browser)
         should be called by the server for every current client instance
@@ -180,8 +190,11 @@ cdef class WV_Wrapper:
              callback function to send the packets
         '''
         
-        cdef myfuncptr func
-        func = (<callback*><size_t>addressof(wv_SendBinaryData))[0]
-        
+        #cdef callback func
+        #func = (<callback*><size_t>addressof(wv_SendBinaryData))[0]
+
         #cwv.wv_sendGPrim(wsi, self.context, &buf[0], flag, &wv_sendBinaryData[0])
-        cwv.wv_sendGPrim(wsi, self.context, &buf[0], flag, func)
+        cwv.wv_sendGPrim(<void*>wsi, self.context, buf, flag, 
+                         callback, <void *>wv_SendBinaryData)
+
+

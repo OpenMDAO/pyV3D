@@ -17,7 +17,7 @@
 
 #include "wv.h"
 
-/*extern wv_sendBinaryData(void *, unsigned char *, int); */
+/*extern wv_sendBinaryData(void *, unsigned char *, int, void *; */
 
 
 /*@null@*/ /*@out@*/ /*@only@*/ void *
@@ -2123,7 +2123,8 @@ wv_removeGPrim(wvContext *cntxt, int index)
 
 static void
 wv_writeBuf(void *wsi, unsigned char *buf, int npack, int *iBuf,
-            int (*wv_sendBinaryData)(void*, unsigned char*, int))
+            int (*wv_sendBinaryData)(void*, unsigned char*, int, void*),
+            void* callback)
 {
   if (*iBuf+npack <= BUFLEN-4) return;
   
@@ -2133,7 +2134,7 @@ wv_writeBuf(void *wsi, unsigned char *buf, int npack, int *iBuf,
   buf[*iBuf+2] = 0;
   buf[*iBuf+3] = 0;             /* continue opcode */
   *iBuf += 4;
-  if (wv_sendBinaryData(wsi, buf, *iBuf) < 0)
+  if (wv_sendBinaryData(wsi, buf, *iBuf, callback) < 0)
     fprintf(stderr, "ERROR Sending Binary Data");
   *iBuf = 0;
 }
@@ -2141,7 +2142,8 @@ wv_writeBuf(void *wsi, unsigned char *buf, int npack, int *iBuf,
 
 static void
 wv_writeGPrim(wvGPrim *gp, void *wsi, unsigned char *buf, int *iBuf,
-            int (*wv_sendBinaryData)(void*, unsigned char*, int))
+            int (*wv_sendBinaryData)(void*, unsigned char*, int, void*), 
+            void* callback)
 {
   int            i, j, n, npack, i4;
   unsigned char  vflag;
@@ -2173,7 +2175,7 @@ wv_writeGPrim(wvGPrim *gp, void *wsi, unsigned char *buf, int *iBuf,
       npack += 3*4*gp->nlIndex + 4;
       vflag |= WV_NORMALS;
     }
-    wv_writeBuf(wsi, buf, npack, iBuf, &wv_sendBinaryData);
+    wv_writeBuf(wsi, buf, npack, iBuf, wv_sendBinaryData, callback);
     if (npack > BUFLEN) {
       printf(" Oops! npack = %d  BUFLEN = %d\n", npack, BUFLEN);
       exit(1);
@@ -2242,7 +2244,7 @@ wv_writeGPrim(wvGPrim *gp, void *wsi, unsigned char *buf, int *iBuf,
         (gp->stripes[i].pIndice2  != NULL)) {
       npack = 12+gp->nameLen + 2*gp->stripes[i].npIndices;
       if ((gp->stripes[i].npIndices%2) != 0) npack += 2;
-      wv_writeBuf(wsi, buf, npack, iBuf, &wv_sendBinaryData);
+      wv_writeBuf(wsi, buf, npack, iBuf, wv_sendBinaryData, callback);
       n     = *iBuf;
       i4    = i;
       c1[3] = 3;                        /* new data opcode */
@@ -2270,7 +2272,7 @@ wv_writeGPrim(wvGPrim *gp, void *wsi, unsigned char *buf, int *iBuf,
         (gp->stripes[i].lIndice2  != NULL)) {
       npack = 12+gp->nameLen + 2*gp->stripes[i].nlIndices;
       if ((gp->stripes[i].nlIndices%2) != 0) npack += 2;
-      wv_writeBuf(wsi, buf, npack, iBuf, &wv_sendBinaryData);
+      wv_writeBuf(wsi, buf, npack, iBuf, wv_sendBinaryData, callback);
       n     = *iBuf;
       i4    = i;
       c1[3] = 3;                        /* new data opcode */
@@ -2315,7 +2317,7 @@ wv_writeGPrim(wvGPrim *gp, void *wsi, unsigned char *buf, int *iBuf,
  */
 void
 wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag, 
-             int (*wv_sendBinaryData)(void*, unsigned char*, int))
+             int (*wv_sendBinaryData)(void*, unsigned char*, int, void*), void *callback)
 {
   int            i, j, k, iBuf, npack, i4;
   unsigned short *s2 = (unsigned short *) &i4;
@@ -2339,7 +2341,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
     buf[53] = 0;
     buf[54] = 0;
     buf[55] = 7;                        /* eof opcode */
-    if (wv_sendBinaryData(wsi, buf, 56) < 0)
+    if (wv_sendBinaryData(wsi, buf, 56, callback) < 0)
       fprintf(stderr, "ERROR sending Binary Data");
     return;
   }
@@ -2359,7 +2361,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
   iBuf = 0;
   if (cntxt->cleanAll != 0) {
     npack = 8;
-    wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+    wv_writeBuf(wsi, buf, npack, &iBuf, wv_sendBinaryData, callback);
     buf[iBuf  ] = 0;
     buf[iBuf+1] = 0;
     buf[iBuf+2] = 0;
@@ -2382,7 +2384,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
     
       /* delete the gPrim */
       npack = 8 + gp->nameLen;
-      wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+      wv_writeBuf(wsi, buf, npack, &iBuf, wv_sendBinaryData, callback);
       buf[iBuf  ] = 0;
       buf[iBuf+1] = 0;
       buf[iBuf+2] = 0;
@@ -2400,7 +2402,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
       npack = 8 + gp->nameLen + 16;
       if (gp->gtype > 0) npack += 16;
       if (gp->gtype > 1) npack += 36;
-      wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+      wv_writeBuf(wsi, buf, npack, &iBuf, wv_sendBinaryData, callback);
       i4    = gp->nStripe;
       c1[3] = 1;                        /* new opcode */
       memcpy(&buf[iBuf  ], c1, 4);
@@ -2426,7 +2428,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
         memcpy(&buf[iBuf], gp->normal, 12);
         iBuf += 12;
       }
-      wv_writeGPrim(gp, wsi, buf, &iBuf, &wv_sendBinaryData); 
+      wv_writeGPrim(gp, wsi, buf, &iBuf, wv_sendBinaryData, callback); 
 
     } else {
     
@@ -2437,7 +2439,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
           if ((gp->stripes[j].nsVerts  == 0) || 
               (gp->stripes[j].vertices == NULL)) continue;
           npack = 12 + gp->nameLen + 3*4*gp->stripes[j].nsVerts;
-          wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+          wv_writeBuf(wsi, buf, npack, &iBuf, wv_sendBinaryData, callback);
           i4    = j;
           c1[3] = 4;                        /* edit opcode */
           memcpy(&buf[iBuf   ], c1, 4);
@@ -2459,7 +2461,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
               (gp->stripes[j].sIndice2  == NULL)) continue;
           npack = 12 + gp->nameLen + 2*gp->stripes[j].nsIndices;
           if ((gp->stripes[j].nsIndices%2) != 0) npack += 2;
-          wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+          wv_writeBuf(wsi, buf, npack, &iBuf, wv_sendBinaryData, callback);
           i4    = j;
           c1[3] = 4;                        /* edit opcode */
           memcpy(&buf[iBuf   ], c1, 4);
@@ -2486,7 +2488,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
           npack = 12 + gp->nameLen + 3*gp->stripes[j].nsVerts;
           if (((3*gp->stripes[j].nsVerts)%4) != 0)
             npack += 4 - (3*gp->stripes[j].nsVerts)%4;
-          wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+          wv_writeBuf(wsi, buf, npack, &iBuf, wv_sendBinaryData, callback);
           i4    = j;
           c1[3] = 4;                        /* edit opcode */
           memcpy(&buf[iBuf   ], c1, 4);
@@ -2513,7 +2515,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
             if ((gp->stripes[j].nsVerts  == 0) || 
                 (gp->stripes[j].vertices == NULL)) continue;
             npack = 12 + gp->nameLen + 3*4*gp->stripes[j].nsVerts;
-            wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+            wv_writeBuf(wsi, buf, npack, &iBuf, wv_sendBinaryData, callback);
             i4    = j;
             c1[3] = 4;                      /* edit opcode */
             memcpy(&buf[iBuf   ], c1, 4);
@@ -2531,7 +2533,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
         } else if (gp->gtype == WV_LINE) {
           /* line decorations */
           npack = 12 + gp->nameLen + 3*4*gp->nlIndex;
-          wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+          wv_writeBuf(wsi, buf, npack, &iBuf, wv_sendBinaryData, callback);
           i4    = 0;
           c1[3] = 4;                        /* edit opcode */
           memcpy(&buf[iBuf   ], c1, 4);
@@ -2552,7 +2554,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
               (gp->stripes[j].pIndice2  == NULL)) continue;
           npack = 12 + gp->nameLen + 2*gp->stripes[j].npIndices;
           if ((gp->stripes[j].npIndices%2) != 0) npack += 2;
-          wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+          wv_writeBuf(wsi, buf, npack, &iBuf, wv_sendBinaryData, callback);
           i4    = j;
           c1[3] = 4;                        /* edit opcode */
           memcpy(&buf[iBuf   ], c1, 4);
@@ -2578,7 +2580,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
               (gp->stripes[j].lIndice2  == NULL)) continue;
           npack = 12 + gp->nameLen + 2*gp->stripes[j].nlIndices;
           if ((gp->stripes[j].nlIndices%2) != 0) npack += 2;
-          wv_writeBuf(wsi, buf, npack, &iBuf, &wv_sendBinaryData);
+          wv_writeBuf(wsi, buf, npack, &iBuf, wv_sendBinaryData, callback);
           i4    = j;
           c1[3] = 4;                        /* edit opcode */
           memcpy(&buf[iBuf   ], c1, 4);
@@ -2607,7 +2609,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
   buf[iBuf+2] = 0;
   buf[iBuf+3] = 7;                      /* eof opcode */
   iBuf       += 4;
-  if (wv_sendBinaryData(wsi, buf, iBuf) < 0)
+  if (wv_sendBinaryData(wsi, buf, iBuf, callback) < 0)
     fprintf(stderr, "ERROR Sending Binary Data");
 
 }

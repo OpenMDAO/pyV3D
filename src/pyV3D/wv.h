@@ -143,5 +143,8 @@ int
 wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs, 
             int nItems, wvData *items);
  
+void
+wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag, 
+             int (*sendbinarydata) (void*, unsigned char*, int, void*), void *callback);
 
 #endif  /*_WSSS_H_*/

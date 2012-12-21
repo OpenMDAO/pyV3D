@@ -63,3 +63,24 @@ colors = array(colors, dtype=uint8)
 normals = array(normals, dtype=float32)
 
 myWV.add_GPrim_solid("MyBox", 0, 0, vertices, indices, colors, normals)
+
+# Determining size of buf for websockets:
+#    define MAX_MUX_RECURSION 2
+#    define LWS_SEND_BUFFER_PRE_PADDING (4 + 10 + (2 * MAX_MUX_RECURSION))
+#    define LWS_SEND_BUFFER_POST_PADDING 1
+#     unsigned char buf[LWS_SEND_BUFFER_PRE_PADDING + 128 +
+#                             LWS_SEND_BUFFER_POST_PADDING]
+#
+# so -> 4 + 10 + 2*2 + 128 + 1 = 147
+
+def send_binary_data(wsi, buf, data):
+    print "In send_binary_data"
+    print wsi
+    print buf
+
+
+
+buf = 147*' '
+wsi = 'test'
+myWV.send_GPrim(wsi, buf, 0, send_binary_data)
+

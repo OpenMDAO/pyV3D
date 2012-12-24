@@ -73,14 +73,19 @@ myWV.add_GPrim_solid("MyBox", 0, 0, vertices, indices, colors, normals)
 #
 # so -> 4 + 10 + 2*2 + 128 + 1 = 147
 
-def send_binary_data(wsi, buf, data):
+def send_binary_data(wsi, buf, ibuf):
     print "In send_binary_data"
     print wsi
-    print buf
+    print "length", len(buf)
+    print "buffer", [buf[i] for i in range(0, ibuf)]
+    print ibuf
+    
+    return 0
 
-
-
-buf = 147*' '
+buf = 146*' '
 wsi = 'test'
+myWV.send_GPrim(wsi, buf, 1, send_binary_data)
 myWV.send_GPrim(wsi, buf, 0, send_binary_data)
+myWV.send_GPrim(wsi, buf, -1, send_binary_data)
 
+myWV.remove_GPrim(0)

@@ -2123,7 +2123,7 @@ wv_removeGPrim(wvContext *cntxt, int index)
 
 static void
 wv_writeBuf(void *wsi, unsigned char *buf, int npack, int *iBuf,
-            int (*wv_sendBinaryData)(void*, unsigned char*, int, void*),
+            cy_callback wv_sendBinaryData,
             void* callback)
 {
   if (*iBuf+npack <= BUFLEN-4) return;
@@ -2142,7 +2142,7 @@ wv_writeBuf(void *wsi, unsigned char *buf, int npack, int *iBuf,
 
 static void
 wv_writeGPrim(wvGPrim *gp, void *wsi, unsigned char *buf, int *iBuf,
-            int (*wv_sendBinaryData)(void*, unsigned char*, int, void*), 
+            cy_callback wv_sendBinaryData, 
             void* callback)
 {
   int            i, j, n, npack, i4;
@@ -2317,7 +2317,7 @@ wv_writeGPrim(wvGPrim *gp, void *wsi, unsigned char *buf, int *iBuf,
  */
 void
 wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag, 
-             int (*wv_sendBinaryData)(void*, unsigned char*, int, void*), void *callback)
+             cy_callback wv_sendBinaryData, void *callback)
 {
   int            i, j, k, iBuf, npack, i4;
   unsigned short *s2 = (unsigned short *) &i4;

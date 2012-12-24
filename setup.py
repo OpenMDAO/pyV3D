@@ -1,46 +1,75 @@
+import os.path
+import setuptools
+import sys
+
+from numpy.distutils.core import setup
+from numpy.distutils.misc_util import Configuration
+
+include_dirs = []
+library_dirs = []
+if sys.platform == 'win32':
+    # Update the ``library_dir_option`` function in MSVCCompiler 
+    # to add quotes around /LIBPATH entries.
+    import types
+    def _lib_dir_option(self, dir):
+        return '/LIBPATH:"%s"' % dir
+    
+    from distutils.msvc9compiler import MSVCCompiler
+    setattr(MSVCCompiler, 'library_dir_option',
+            types.MethodType(_lib_dir_option, None, MSVCCompiler))
+    
+    sdkdir = os.environ.get('WindowsSdkDir')
+    if sdkdir:
+        include_dirs.append(os.path.join(sdkdir,'Include'))
+        library_dirs.append(os.path.join(sdkdir,'Lib'))
+        # make sure we have mt.exe available in case we need it
+        path = os.environ['PATH'].split(';')
+        path.append(os.path.join(sdkdir,'bin'))
+        os.environ['PATH'] = ';'.join(path)
+
+config = Configuration(name='pyV3D')
+config.add_extension('pyV3D',
+                     sources=['src/pyV3D/wv.c', 'src/pyV3D/pyV3D.c'],
+                     include_dirs=include_dirs,
+                     library_dirs=library_dirs)
+config.add_data_files('LICENSE.txt','README.txt')
+
+kwds = {'install_requires':['numpy'],
+        'author': '',
+        'author_email': '',
+        'classifiers': ['Intended Audience :: Science/Research',
+                        'Topic :: Scientific/Engineering'],
+        'description': '',
+        'download_url': '',
+        'include_package_data': True,
+        'install_requires': ['openmdao.main', 'numpy'],
+        'keywords': ['openmdao'],
+        'license': 'Apache License, Version 2.0',
+        'maintainer': '',
+        'maintainer_email': '',
+        'name': 'pyV3D',
+        'package_data': {'pyV3D': []},
+        'package_dir': {'': 'src'},
+        'packages': ['pyV3D'],
+        'url': '',
+        'version': '0.1',
+        'zip_safe': False,
+       }
+
+kwds.update(config.todict())
+setup(**kwds)
+
+
+
 
 #from numpy.distutils.core import Extension, setup
 #from numpy.distutils.misc_util import Configuration
-from distutils.core import setup
-from distutils.extension import Extension
-from Cython.Distutils import build_ext
-
-setup(
-    cmdclass = {'build_ext': build_ext},
-    ext_modules = [Extension("wv", ["src/pyV3D/wv.c"]),
-                   Extension("pyV3D", ["src/pyV3D/pyV3D.pyx"])]
-)
-
-##from numpy.distutils.core import Extension, setup
-##from numpy.distutils.misc_util import Configuration
 #from distutils.core import setup
 #from distutils.extension import Extension
 #from Cython.Distutils import build_ext
-
-#ext_modules = [Extension("pyV3D", ["src/pyV3D/pyV3D.pyx"])]
-
-#kwargs = {'author': '',
- #'author_email': '',
- #'classifiers': ['Intended Audience :: Science/Research',
-                 #'Topic :: Scientific/Engineering'],
- #'cmd_class' : {'build_ext': build_ext},
- #'description': '',
- #'download_url': '',
- #'ext_modules' : ext_modules,
- #'include_package_data': True,
- #'install_requires': ['openmdao.main'],
- #'keywords': ['openmdao'],
- #'license': '',
- #'maintainer': '',
- #'maintainer_email': '',
- #'name': 'pyV3D',
- #'package_data': {'pyV3D': []},
- #'package_dir': {'': 'src'},
- #'packages': ['pyV3D'],
- #'url': '',
- #'version': '0.1',
- #'zip_safe': False}
-
-
-#setup(**kwargs)
-
+#
+#setup(
+#    cmdclass = {'build_ext': build_ext},
+#    ext_modules = [Extension("wv", ["src/pyV3D/wv.c"]),
+#                   Extension("pyV3D", ["src/pyV3D/pyV3D.pyx"])]
+#)

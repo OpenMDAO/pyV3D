@@ -9,9 +9,9 @@
  *
  */
 
-#ifndef _WSSS_H_
+#ifndef _WV_H_
 
-#define _WSSS_H_
+#define _WV_H_
 
 
 
@@ -142,9 +142,14 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct);
 int
 wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs, 
             int nItems, wvData *items);
- 
+
+typedef int (*cy_callback) (void *wsi, unsigned char *buf, int ibuf, void *f);
+
 void
 wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag, 
-             int (*sendbinarydata) (void*, unsigned char*, int, void*), void *callback);
+             cy_callback wv_sendBinaryData, void *callback);
+             
+void
+wv_removeGPrim(wvContext *cntxt, int index);             
 
-#endif  /*_WSSS_H_*/
+#endif  /*_WV_H_*/

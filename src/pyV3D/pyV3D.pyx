@@ -14,11 +14,9 @@
 # Passing string (char*) back into Python
 #     http://docs.cython.org/src/tutorial/strings.html
 
-from ctypes import addressof
+#from ctypes import addressof
 
 cimport numpy as np
-
-#cimport cwv
 
 # Attributes.
 WV_ON = 1
@@ -123,7 +121,8 @@ cdef extern from "wv.h":
     int wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs, 
                     int nItems, wvData *items)
                     
-    ctypedef int (*cy_callback) (void *wsi, unsigned char *buf, int ibuf, void *f) 
+    ctypedef int (*cy_callback) (void *wsi, unsigned char *buf,
+                                 int ibuf, void *f) 
 
     void wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
                       cy_callback callback1, void* callback2)

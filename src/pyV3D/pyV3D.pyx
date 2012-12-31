@@ -51,9 +51,6 @@ WV_INT32 = 3
 WV_REAL32 = 4
 WV_REAL64 = 5
 
-#ctypedef int (*callback) (void*, unsigned char*, int, void*) 
-#ctypedef int (*cy_callback) (void *wsi, unsigned char *buf, int ibuf, void *f) 
-
 cdef extern from "wv.h":
 
     ctypedef struct wvStripe:
@@ -203,17 +200,45 @@ cdef class WV_Wrapper:
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
     def add_GPrim_solid(self, name, attr, offset,
-                        np.ndarray[float, ndim=1, mode="c"] vertices not None,
-                        np.ndarray[int, ndim=1, mode="c"] indices not None,
-                        np.ndarray[unsigned char, ndim=1, mode="c"] colors not None,
-                        np.ndarray[float, ndim=1, mode="c"] normals not None
+                        np.ndarray[float, mode="c"] vertices not None,
+                        np.ndarray[int, mode="c"] indices not None,
+                        np.ndarray[unsigned char, mode="c"] colors=None,
+                        np.ndarray[float, mode="c"] normals=None
                         ):
         '''Do me a VBO solid.
+        
+        name: str
+            Name of the primitive.
+            
+        attr: int
+            Bitwise integer of additional flags.
+            
+        offset: 
+            Currently not used.
+            
+        vertices: Numpy ndarray (1xN*3 or Nx3)
+            Vector of triangle vertices.
+        
+        indices: Numpy ndarray (1xM*3 or Mx3)
+            Vector of triangle connectivities.
+        
+        colors: Numpy ndarray (1xM*3 or Mx3)
+            Optional. Vector of color coordinates per triangle.
+        
+        normals: Numpy ndarray (1xM*3 or Mx3)
+            Optional. Vector of triangle outward-pointing normals.
         '''
+        
         cdef int ndata, error_code, nitems
         cdef wvData items[5]
         
-        nitems = 4
+        nitems = 2
+        
+        # Check shapes
+        if vertices.ndim > 1:
+            vertices.flatten()
+        if indices.ndim > 1:
+            indices.flatten()
         
         ndata = vertices.shape[0]/3
         print "Processing %d vertices." % ndata
@@ -229,28 +254,155 @@ cdef class WV_Wrapper:
                                 WV_INDICES, &items[1])
         print "Returned Status:", error_code
         
-        ndata = colors.shape[0]/3
-        print "Processing %d colors." % ndata
+        if colors is not None:
+            if colors.ndim > 1:
+                colors.flatten()
+            ndata = colors.shape[0]/3
+            print "Processing %d colors." % ndata
         
-        error_code = wv_setData(WV_UINT8, ndata, &colors[0], 
-                                WV_COLORS, &items[2])
-        print "Returned Status:", error_code
+            error_code = wv_setData(WV_UINT8, ndata, &colors[0], 
+                                    WV_COLORS, &items[nitems])
+            print "Returned Status:", error_code
+            nitems += 1
         
-        ndata = normals.shape[0]/3
-        print "Processing %d normals." % ndata
+        if normals is not None:
+            if normals.ndim > 1:
+                normals.flatten()
+            ndata = normals.shape[0]/3
+            print "Processing %d normals." % ndata
         
-        error_code = wv_setData(WV_REAL32, ndata, &normals[0], 
-                                WV_NORMALS, &items[3])
-        print "Returned Status:", error_code
+            error_code = wv_setData(WV_REAL32, ndata, &normals[0], 
+                                    WV_NORMALS, &items[nitems])
+            print "Returned Status:", error_code
+            nitems += 1
         
-        # Add the primary
+        # Add the primitive
         print "Adding the GPrim Object"
         error_code = wv_addGPrim(self.context, name, WV_TRIANGLE, attr, 
                                   nitems, items)
         print "Returned Status:", error_code
         print "GPrim %s added." % self.context.gPrims.name
         
-        print "There are %d primaries in context" % self.context.nGPrim
+        print "There are %d primitives in context" % self.context.nGPrim
+        
+    #@cython.boundscheck(False)
+    #@cython.wraparound(False)        
+    def add_GPrim_wireframe(self, name, attr, offset,
+                            np.ndarray[float, mode="c"] vertices not None,
+                            np.ndarray[int, mode="c"] indices not None,
+                            ):
+        '''Declare a wireframe VBO.
+        
+        name: str
+            Name of the primitive.
+            
+        attr: int
+            Bitwise integer of additional flags.
+            
+        offset: 
+            Currently not used.
+            
+        vertices: Numpy ndarray (1xN*3 or Nx3)
+            Vector of vertex coordinates.
+        
+        indices: Numpy ndarray (1xM*2 or Mx2)
+            Vector of line connectivities.
+        
+        '''
+
+        cdef int ndata, error_code, nitems
+        cdef wvData items[2]
+        nitems = 2
+        
+        # Check shapes
+        if vertices.ndim > 1:
+            vertices.flatten()
+        if indices.ndim > 1:
+            indices.flatten()
+        
+        ndata = vertices.shape[0]/3
+        print "Processing %d vertices." % ndata
+        
+        error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
+                                WV_VERTICES, &items[0])
+        print "Returned Status:", error_code
+        
+        ndata = indices.shape[0]
+        print "Processing %d indices." % ndata
+        
+        error_code = wv_setData(WV_INT32, ndata, &indices[0], 
+                                WV_INDICES, &items[1])
+        print "Returned Status:", error_code
+
+        # Add the primitive
+        print "Adding the GPrim Object"
+        error_code = wv_addGPrim(self.context, name, WV_LINE, attr, 
+                                  nitems, items)
+        print "Returned Status:", error_code
+        print "GPrim %s added." % self.context.gPrims.name
+        
+        print "There are %d primitives in context" % self.context.nGPrim
+        
+
+    #@cython.boundscheck(False)
+    #@cython.wraparound(False)        
+    def add_GPrim_pointcloud(self, name, attr, offset,
+                             np.ndarray[float, mode="c"] vertices not None,
+                             np.ndarray[unsigned char, mode="c"] colors=None,
+                             ):
+        '''Declare a cloud of points VBO.
+        
+        name: str
+            Name of the primitive.
+            
+        attr: int
+            Bitwise integer of additional flags.
+            
+        offset: 
+            Currently not used.
+            
+        vertices: Numpy ndarray (1xN*3 or Nx3)
+            Vector of point coordinates.
+        
+        colors: Numpy ndarray (1xM*3 or Mx3)
+            Optional. Vector of color coordinates per point.
+        '''
+
+        cdef int ndata, error_code, nitems
+        cdef wvData items[2]
+        nitems = 1
+        
+        # Check shapes
+        if vertices.ndim > 1:
+            vertices.flatten()
+        
+        ndata = vertices.shape[0]/3
+        print "Processing %d vertices." % ndata
+        
+        error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
+                                WV_VERTICES, &items[0])
+        print "Returned Status:", error_code
+        
+        if colors is not None:
+            if colors.ndim > 1:
+                colors.flatten()
+            ndata = colors.shape[0]/3
+            print "Processing %d colors." % ndata
+        
+            error_code = wv_setData(WV_UINT8, ndata, &colors[0], 
+                                    WV_COLORS, &items[nitems])
+            print "Returned Status:", error_code
+            nitems += 1
+        
+        
+        # Add the primitive
+        print "Adding the GPrim Object"
+        error_code = wv_addGPrim(self.context, name, WV_POINT, attr, 
+                                  nitems, items)
+        print "Returned Status:", error_code
+        print "GPrim %s added." % self.context.gPrims.name
+        
+        print "There are %d primitives in context" % self.context.nGPrim
         
         
     #@cython.boundscheck(False)

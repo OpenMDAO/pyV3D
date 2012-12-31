@@ -62,7 +62,7 @@ indices = array(indices, dtype=int32)
 colors = array(colors, dtype=uint8)
 normals = array(normals, dtype=float32)
 
-myWV.add_GPrim_solid("MyBox", 0, 0, vertices, indices, colors, normals)
+myWV.add_GPrim_solid("MyBox", 0, 0, vertices, indices)
 
 # Determining size of buf for websockets:
 #    define MAX_MUX_RECURSION 2

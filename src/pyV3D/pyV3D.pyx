@@ -13,8 +13,9 @@
 #
 # Passing string (char*) back into Python
 #     http://docs.cython.org/src/tutorial/strings.html
-
-#from ctypes import addressof
+#
+# Passing Python objects in and out of the C code
+#     http://www.cython.org/release/Cython-0.12/Cython/Includes/python.pxd
 
 cimport numpy as np
 
@@ -134,13 +135,10 @@ cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
     '''This Cython function wraps the python return function, and
     passes whatever it needs to.
     '''
-    py_wsi = 0
-    print "buffer", [buf[i] for i in range(0, ibuf)]
-    
     cdef bytes py_buf
     py_buf = buf[:ibuf]
         
-    status = (<object>f)(py_wsi, py_buf, ibuf)
+    status = (<object>f)(<object>wsi, py_buf, ibuf)
     return status        
     
 cdef class WV_Wrapper:
@@ -198,22 +196,22 @@ cdef class WV_Wrapper:
         
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
-    def add_GPrim_solid(self, name, attr, offset,
+    def add_GPrim_solid(self, name, 
                         np.ndarray[float, mode="c"] vertices not None,
                         np.ndarray[int, mode="c"] indices not None,
                         np.ndarray[unsigned char, mode="c"] colors=None,
-                        np.ndarray[float, mode="c"] normals=None
+                        np.ndarray[float, mode="c"] normals=None,
+                        visible=True,
+                        transparency=False,
+                        shading=False,
+                        orientation=False,
+                        points_visible=False,
+                        lines_visible=False
                         ):
         '''Do me a VBO solid.
         
         name: str
             Name of the primitive.
-            
-        attr: int
-            Bitwise integer of additional flags.
-            
-        offset: 
-            Currently not used.
             
         vertices: Numpy ndarray (1xN*3 or Nx3)
             Vector of triangle vertices.
@@ -226,6 +224,24 @@ cdef class WV_Wrapper:
         
         normals: Numpy ndarray (1xM*3 or Mx3)
             Optional. Vector of triangle outward-pointing normals.
+            
+        visible: bool
+            Set to true to make this object visible
+            
+        transparency: bool
+            Set to true to turn on transparency
+
+        shading: bool
+            Set to true to turn on shading
+
+        orientation: bool
+            Set to true to turn on orientation (TODO: What is this?)
+
+        points_display: bool
+            Set to true to turn on display of vertices
+
+        lines_display: bool
+            Set to true to turn on display of edges
         '''
         
         cdef int ndata, error_code, nitems
@@ -275,6 +291,21 @@ cdef class WV_Wrapper:
             print "Returned Status:", error_code
             nitems += 1
         
+        # Assemble the attributes
+        attr = 0
+        if visible:
+            attr = attr|WV_ON
+        if transparency:
+            attr = attr|WV_TRANSPARENT
+        if shading:
+            attr = attr|WV_SHADING
+        if orientation:
+            attr = attr|WV_ORIENTATION
+        if points_visible:
+            attr = attr|WV_POINTS
+        if lines_visible:
+            attr = attr|WV_LINES
+        
         # Add the primitive
         print "Adding the GPrim Object"
         error_code = wv_addGPrim(self.context, name, WV_TRIANGLE, attr, 
@@ -286,20 +317,15 @@ cdef class WV_Wrapper:
         
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
-    def add_GPrim_wireframe(self, name, attr, offset,
+    def add_GPrim_wireframe(self, name,
                             np.ndarray[float, mode="c"] vertices not None,
                             np.ndarray[int, mode="c"] indices not None,
+                            visible=True,
                             ):
         '''Declare a wireframe VBO.
         
         name: str
             Name of the primitive.
-            
-        attr: int
-            Bitwise integer of additional flags.
-            
-        offset: 
-            Currently not used.
             
         vertices: Numpy ndarray (1xN*3 or Nx3)
             Vector of vertex coordinates.
@@ -307,6 +333,8 @@ cdef class WV_Wrapper:
         indices: Numpy ndarray (1xM*2 or Mx2)
             Vector of line connectivities.
         
+        visible: bool
+            Set to true to make this object visible
         '''
 
         cdef int ndata, error_code, nitems
@@ -333,6 +361,11 @@ cdef class WV_Wrapper:
                                 WV_INDICES, &items[1])
         print "Returned Status:", error_code
 
+        # Assemble the attributes
+        attr = 0
+        if visible:
+            attr = attr|WV_ON
+        
         # Add the primitive
         print "Adding the GPrim Object"
         error_code = wv_addGPrim(self.context, name, WV_LINE, attr, 
@@ -345,26 +378,24 @@ cdef class WV_Wrapper:
 
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
-    def add_GPrim_pointcloud(self, name, attr, offset,
+    def add_GPrim_pointcloud(self, name,
                              np.ndarray[float, mode="c"] vertices not None,
                              np.ndarray[unsigned char, mode="c"] colors=None,
+                             visible=True,
                              ):
         '''Declare a cloud of points VBO.
         
         name: str
             Name of the primitive.
             
-        attr: int
-            Bitwise integer of additional flags.
-            
-        offset: 
-            Currently not used.
-            
         vertices: Numpy ndarray (1xN*3 or Nx3)
             Vector of point coordinates.
         
-        colors: Numpy ndarray (1xM*3 or Mx3)
-            Optional. Vector of color coordinates per point.
+        colors: Numpy ndarray (1x3)
+            Optional. Vector of color coordinates for this group of points.
+            
+        visible: bool
+            Set to true to make this object visible
         '''
 
         cdef int ndata, error_code, nitems
@@ -385,14 +416,18 @@ cdef class WV_Wrapper:
         if colors is not None:
             if colors.ndim > 1:
                 colors.flatten()
-            ndata = colors.shape[0]/3
+            ndata = 1
             print "Processing %d colors." % ndata
         
-            error_code = wv_setData(WV_UINT8, ndata, &colors[0], 
+            error_code = wv_setData(WV_REAL32, ndata, &colors[0], 
                                     WV_COLORS, &items[nitems])
             print "Returned Status:", error_code
             nitems += 1
         
+        # Assemble the attributes
+        attr = 0
+        if visible:
+            attr = attr|WV_ON
         
         # Add the primitive
         print "Adding the GPrim Object"
@@ -411,7 +446,8 @@ cdef class WV_Wrapper:
         should be called by the server for every current client instance
         
         wsi: (void*)
-            blind pointer that gets passed on to the send function
+            blind pointer to the webserver. This gets passed on to the 
+            send function
             
         buf: (unsigned char *)
             the allocated buffer to pack the message

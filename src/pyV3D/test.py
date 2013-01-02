@@ -62,7 +62,8 @@ indices = array(indices, dtype=int32)
 colors = array(colors, dtype=uint8)
 normals = array(normals, dtype=float32)
 
-myWV.add_GPrim_solid("MyBox", 0, 0, vertices, indices)
+myWV.add_GPrim_solid("MyBox", vertices, indices, colors, normals,
+                     shading=True, orientation=True)
 
 # Determining size of buf for websockets:
 #    define MAX_MUX_RECURSION 2
@@ -75,15 +76,20 @@ myWV.add_GPrim_solid("MyBox", 0, 0, vertices, indices)
 
 def send_binary_data(wsi, buf, ibuf):
     print "In send_binary_data"
-    print wsi
     print "length", len(buf)
     print "buffer", [buf[i] for i in range(0, ibuf)]
     print ibuf
+    wsi.check()
     
     return 0
 
+class wsi_server(object):
+    
+    def check(self):
+        print "Hello from the Server"
+
 buf = 146*' '
-wsi = 'test'
+wsi = wsi_server()
 myWV.send_GPrim(wsi, buf, 1, send_binary_data)
 myWV.send_GPrim(wsi, buf, 0, send_binary_data)
 myWV.send_GPrim(wsi, buf, -1, send_binary_data)

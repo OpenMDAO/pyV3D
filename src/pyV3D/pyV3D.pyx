@@ -133,7 +133,7 @@ cdef extern from "wv.h":
     
 cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
     '''This Cython function wraps the python return function, and
-    passes whatever it needs to.
+    passes it a buffer of binary data and a pointer to the web server.
     '''
     cdef bytes py_buf
     py_buf = buf[:ibuf]
@@ -226,7 +226,7 @@ cdef class WV_Wrapper:
             Optional. Vector of triangle outward-pointing normals.
             
         visible: bool
-            Set to true to make this object visible
+            Set to true to make this object visible. Default=True
             
         transparency: bool
             Set to true to turn on transparency
@@ -334,7 +334,7 @@ cdef class WV_Wrapper:
             Vector of line connectivities.
         
         visible: bool
-            Set to true to make this object visible
+            Set to true to make this object visible. Default=True
         '''
 
         cdef int ndata, error_code, nitems
@@ -395,7 +395,7 @@ cdef class WV_Wrapper:
             Optional. Vector of color coordinates for this group of points.
             
         visible: bool
-            Set to true to make this object visible
+            Set to true to make this object visible. Default=True
         '''
 
         cdef int ndata, error_code, nitems

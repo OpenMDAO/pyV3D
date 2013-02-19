@@ -4,6 +4,18 @@ import sys
 from tornado import httpserver, web, escape, ioloop
 from tornado.web import RequestHandler, StaticFileHandler
 
+from argparse import ArgumentParser
+
+debug = True
+
+if debug:
+    def DEBUG(msg):
+       print '<<<' + str(os.getpid()) + '>>> --', msg
+else:
+    def DEBUG(msg):
+        pass
+
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def get_argument_parser():
     ''' create a parser for command line arguments
@@ -25,13 +37,13 @@ def main():
     options, args = parser.parse_known_args()
 
 
-     handlers = [
-        # web.url(r'/', MainHandler),
-        # web.url(r'/js/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'js')}),
-        # web.url(r'/lib/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'lib')}),
-        # web.url(r'/css/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'css')}),
-        # web.url(r'/img/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'img')}),
-        # web.url(r'/partials/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'partials')}),
+    handlers = [
+        web.url(r'/', MainHandler),
+        web.url(r'/js/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'js')}),
+        web.url(r'/lib/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'lib')}),
+        web.url(r'/css/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'css')}),
+        web.url(r'/img/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'img')}),
+        web.url(r'/partials/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'partials')}),
         # web.url(r'/hosts/(.*)', CommitHandler),
         # web.url(r'/tests', CommitsHandler),
         # web.url(r'/results/(.*)/(.*)', TestHandler)

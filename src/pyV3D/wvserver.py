@@ -1,7 +1,7 @@
 import os
 import sys
 
-from tornado import httpserver, web, escape, ioloop
+from tornado import httpserver, web, escape, ioloop, websocket
 from tornado.web import RequestHandler, StaticFileHandler
 
 from argparse import ArgumentParser
@@ -25,10 +25,20 @@ def get_argument_parser():
                         help='port to run server on')
     return parser
 
-class MainHandler(RequestHandler):
 
-    def get(self):
-        self.render('index.html')
+class WSHandler(websocket.WebSocketHandler):
+    def open(self):
+        print "WebSocket opened"
+
+    def on_message(self, message):
+        self.write_message(u"You said: " + message)
+
+    def on_close(self):
+        print "WebSocket closed"
+
+# class MainHandler(RequestHandler):
+#     def get(self):
+#         self.render('index.html')
 
 def main():
     ''' Process command line arguments and run.
@@ -38,20 +48,12 @@ def main():
 
 
     handlers = [
-        web.url(r'/', MainHandler),
-        web.url(r'/js/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'js')}),
-        web.url(r'/lib/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'lib')}),
-        web.url(r'/css/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'css')}),
-        web.url(r'/img/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'img')}),
-        web.url(r'/partials/(.*)', web.StaticFileHandler, {'path': os.path.join(APP_DIR,'partials')}),
-        # web.url(r'/hosts/(.*)', CommitHandler),
-        # web.url(r'/tests', CommitsHandler),
-        # web.url(r'/results/(.*)/(.*)', TestHandler)
+        web.url(r'/websocket',     WShandler),
     ]
 
     app_settings = {
         'static_path':       APP_DIR,
-        'template_path':     os.path.join(APP_DIR, 'partials'),
+        #'template_path':     os.path.join(APP_DIR, 'partials'),
         'debug':             True,
     }
    

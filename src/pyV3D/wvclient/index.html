@@ -1,15 +1,16 @@
 <!doctype html>
-<html lang="en" ng-app="myApp">
+<html lang="en" ng-app="WebViewerApp">
 <head>
   <meta charset="utf-8">
   <title>Web Viewer</title>
   <link href="css/app.css", rel="stylesheet">
   <link href="css/bootstrap.min.css", rel="stylesheet">
 </head>
-<body>
-  <div class="container">
-    <div ng-view></div>
-  </div>
+<body ng-controller="WebViewerCtrl">
+  <canvas id="WebViewer">
+      If you're seeing this your web browser doesn't support the &lt;canvas>&gt; element. Ouch!
+  </canvas>
+  <div id="statusline"></div>
   <!-- In production use:
   <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.0.2/angular.min.js"></script>
   -->

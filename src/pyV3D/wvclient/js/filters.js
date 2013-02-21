@@ -2,7 +2,7 @@
 
 /* Filters */
 
-angular.module('myApp.filters', []).
+angular.module('WebViewerApp.filters', []).
   filter('newlines', function() {
   	/* This filter just adds line breaks so a multi-line string will display properly
   	   as html.

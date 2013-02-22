@@ -24,10 +24,22 @@
   <script src="lib/WebViewer/wv-gPrim.js"></script>
   <script src="lib/WebViewer/wv-sGraph.js"></script>
   <script src="lib/WebViewer/wv-socket.js"></script>
+  <script src="lib/WebViewer/simpleUI.js"></script>
   <script src="js/services.js"></script>
   <script src="js/controllers.js"></script>
   <script src="js/filters.js"></script>
   <script src="js/directives.js"></script>
   <script src="js/app.js"></script>
-</body>
+  <script>
+    "use strict";
+
+    var   g = {};           // place to store "globals"
+    g.zNear =  1.0;         // have some values for Zscreen
+    g.zFar  = 11.0;
+
+    // initialize webSockets
+    var url = prompt("Enter hostname:port", "Localhost:8000");
+    getSockets("ws://"+url);
+  </script>
+  </body>
 </html>

@@ -102,4 +102,5 @@ wsi = wsi_server()
 #myWV.send_GPrim(wsi, buf, 0, send_binary_data)
 myWV.send_GPrim(wsi, buf, -1, send_binary_data)
 
+del myContext
 myWV.remove_GPrim(0)

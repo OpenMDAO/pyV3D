@@ -50,6 +50,13 @@ WV_INT32 = 3
 WV_REAL32 = 4
 WV_REAL64 = 5
 
+# Type dictionary
+TYPE_DICT = { 'uint8'   : WV_UINT8,
+              'uint16'  : WV_UINT16,
+              'int32'   : WV_INT32,
+              'float32' : WV_REAL32,
+              'float64' : WV_REAL64 }
+
 cdef extern from "wv.h":
 
     ctypedef struct wvStripe:
@@ -139,7 +146,22 @@ cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
     py_buf = buf[:ibuf]
         
     status = (<object>f)(<object>wsi, py_buf, ibuf)
-    return status        
+    return status     
+    
+    
+#def get_type(data):
+    #''' Figure out if our array is an acceptable type, and return
+    #the type string.'''
+    
+    #dtype = str(data.dtype)
+    
+    #if dtype not in TYPE_DICT.keys():
+        #msg = "Array dtype '%n'" % dtype + \
+              #" is not supported by pyV3D."
+        #raise RuntimeError(msg)
+        
+    #return TYPE_DICT[dtype]
+
     
 cdef class WV_Wrapper:
 
@@ -193,11 +215,24 @@ cdef class WV_Wrapper:
         print self.context.zFar
         print self.context.eye[0]
         
+    def load_DRep(self, drep, ibrep, nfaces, name=None):
+        '''Load model ibrep from a GEM DRep'''
+        
+        for iface in range(1, nfaces+1):
+            triArray, xyzArray = drep.getTessel(ibrep, iface)
+            
+            # Flatten here until I can figure out why they aren't
+            # flattening in add_GPrim_*
+            triArray = triArray.flatten()
+            xyzArray = xyzArray.flatten()
+            
+            self.add_GPrim_solid(name, xyzArray, triArray,
+                     shading=True, orientation=True)
         
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
     def add_GPrim_solid(self, name, 
-                        np.ndarray[float, mode="c"] vertices not None,
+                        np.ndarray[double, mode="c"] vertices not None,
                         np.ndarray[int, mode="c"] indices not None,
                         np.ndarray[unsigned char, mode="c"] colors=None,
                         np.ndarray[float, mode="c"] normals=None,
@@ -251,18 +286,20 @@ cdef class WV_Wrapper:
         
         # Check shapes
         if vertices.ndim > 1:
-            vertices.flatten()
+            vertices = vertices.flatten()
         if indices.ndim > 1:
-            indices.flatten()
+            indices = indices.flatten()
         
         ndata = vertices.shape[0]/3
+        #dtype_string = get_type(vertices)
         print "Processing %d vertices." % ndata
         
-        error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
+        error_code = wv_setData(WV_REAL64, ndata, &vertices[0], 
                                 WV_VERTICES, &items[0])
         print "Returned Status:", error_code
         
         ndata = indices.shape[0]
+        #dtype_string = get_type(indices)
         print "Processing %d indices." % ndata
         
         error_code = wv_setData(WV_INT32, ndata, &indices[0], 
@@ -271,7 +308,7 @@ cdef class WV_Wrapper:
         
         if colors is not None:
             if colors.ndim > 1:
-                colors.flatten()
+                colors = colors.flatten()
             ndata = colors.shape[0]/3
             print "Processing %d colors." % ndata
         
@@ -282,7 +319,7 @@ cdef class WV_Wrapper:
         
         if normals is not None:
             if normals.ndim > 1:
-                normals.flatten()
+                normals = normals.flatten()
             ndata = normals.shape[0]/3
             print "Processing %d normals." % ndata
         
@@ -343,9 +380,9 @@ cdef class WV_Wrapper:
         
         # Check shapes
         if vertices.ndim > 1:
-            vertices.flatten()
+            vertices = vertices.flatten()
         if indices.ndim > 1:
-            indices.flatten()
+            indices = indices.flatten()
         
         ndata = vertices.shape[0]/3
         print "Processing %d vertices." % ndata
@@ -404,7 +441,7 @@ cdef class WV_Wrapper:
         
         # Check shapes
         if vertices.ndim > 1:
-            vertices.flatten()
+            vertices = vertices.flatten()
         
         ndata = vertices.shape[0]/3
         print "Processing %d vertices." % ndata

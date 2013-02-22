@@ -235,7 +235,7 @@ cdef class WV_Wrapper:
                         np.ndarray[double, mode="c"] vertices not None,
                         np.ndarray[int, mode="c"] indices not None,
                         np.ndarray[unsigned char, mode="c"] colors=None,
-                        np.ndarray[float, mode="c"] normals=None,
+                        np.ndarray[double, mode="c"] normals=None,
                         visible=True,
                         transparency=False,
                         shading=False,
@@ -355,7 +355,7 @@ cdef class WV_Wrapper:
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
     def add_GPrim_wireframe(self, name,
-                            np.ndarray[float, mode="c"] vertices not None,
+                            np.ndarray[double, mode="c"] vertices not None,
                             np.ndarray[int, mode="c"] indices not None,
                             visible=True,
                             ):
@@ -416,7 +416,7 @@ cdef class WV_Wrapper:
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
     def add_GPrim_pointcloud(self, name,
-                             np.ndarray[float, mode="c"] vertices not None,
+                             np.ndarray[double, mode="c"] vertices not None,
                              np.ndarray[unsigned char, mode="c"] colors=None,
                              visible=True,
                              ):

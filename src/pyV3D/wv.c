@@ -2614,3 +2614,53 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
 
 }
 
+/* 
+ * sets the thread marker and gets ready for sends
+ */
+void
+wv_prepareForSends(wvContext *cntxt)
+{
+  if (cntxt == NULL) return;
+
+  while (cntxt->dataAccess != 0) usleep(1000);
+  cntxt->ioAccess = 1;
+}
+
+
+/* marks the data after all message(s) have been sent to the browser(s)
+ *
+ * should be called by the server after looping over active clients 
+ *
+ * where: cntxt - the wvContext we are using
+ *
+ */
+void
+wv_finishSends(wvContext *cntxt)
+{
+  int i, j;
+  
+  if (cntxt->gPrims == NULL) {
+    cntxt->ioAccess = 0;
+    return;
+  }
+
+  for (i = 0; i < cntxt->nGPrim; i++)
+    if ((cntxt->gPrims[i].updateFlg&WV_DELETE) == 0)
+      cntxt->gPrims[i].updateFlg = 0;
+  
+  /* remove deleted GPrims */
+  for (i = cntxt->nGPrim-1; i >= 0; i--) {
+    if (cntxt->gPrims[i].updateFlg != (WV_DELETE|WV_DONE)) continue;
+    wv_freeGPrim(cntxt->gPrims[i]);
+  }
+  for (i = j = 0; j < cntxt->nGPrim; j++) {
+    if (cntxt->gPrims[j].updateFlg == (WV_DELETE|WV_DONE)) continue;
+    cntxt->gPrims[i] = cntxt->gPrims[j];
+    i++;
+  }
+  cntxt->nGPrim   = i;
+  
+  cntxt->ioAccess = 0;
+}
+
+

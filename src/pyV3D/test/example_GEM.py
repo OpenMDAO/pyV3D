@@ -63,8 +63,10 @@ myWV.load_DRep(myDRep, iBRep+1, nface, name="MyBox")
 
 buf = 146*' '
 wsi = wsi_server()
+myWV.prepare_for_sends()
 #myWV.send_GPrim(wsi, buf, 1, send_binary_data)
 #myWV.send_GPrim(wsi, buf, 0, send_binary_data)
 myWV.send_GPrim(wsi, buf, -1, send_binary_data)
+myWV.finish_sends()
 
 myWV.remove_GPrim(0)

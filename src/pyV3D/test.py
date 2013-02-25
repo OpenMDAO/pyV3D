@@ -1,6 +1,6 @@
 
 from pyV3D import WV_Wrapper
-from numpy import array, float32, int32, uint8
+from numpy import array, float64, float32, int32, uint8
 
 
 myWV = WV_Wrapper()
@@ -57,10 +57,10 @@ indices = [
    20,21,22, 20,22,23 ] # back
 
 
-vertices = array(vertices, dtype=float32)
+vertices = array(vertices, dtype=float64)
 indices = array(indices, dtype=int32)
 colors = array(colors, dtype=uint8)
-normals = array(normals, dtype=float32)
+normals = array(normals, dtype=float64)
 
 myWV.add_GPrim_solid("MyBox", vertices, indices, colors, normals,
                      shading=True, orientation=True)
@@ -98,9 +98,10 @@ class wsi_server(object):
 
 buf = 146*' '
 wsi = wsi_server()
+myWV.prepare_for_sends()
 #myWV.send_GPrim(wsi, buf, 1, send_binary_data)
 #myWV.send_GPrim(wsi, buf, 0, send_binary_data)
 myWV.send_GPrim(wsi, buf, -1, send_binary_data)
-
+myWV.finish_sends()
 del myContext
 myWV.remove_GPrim(0)

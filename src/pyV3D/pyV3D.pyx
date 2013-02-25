@@ -57,6 +57,8 @@ TYPE_DICT = { 'uint8'   : WV_UINT8,
               'float32' : WV_REAL32,
               'float64' : WV_REAL64 }
 
+from libc.stdio cimport printf
+
 cdef extern from "wv.h":
 
     ctypedef struct wvStripe:
@@ -218,6 +220,7 @@ cdef class WV_Wrapper:
     def load_DRep(self, drep, ibrep, nfaces, name=None):
         '''Load model ibrep from a GEM DRep'''
         
+        indices = []
         for iface in range(1, nfaces+1):
             triArray, xyzArray = drep.getTessel(ibrep, iface)
             
@@ -226,8 +229,12 @@ cdef class WV_Wrapper:
             triArray = triArray.flatten()
             xyzArray = xyzArray.flatten()
             
-            self.add_GPrim_solid(name, xyzArray, triArray,
-                     shading=True, orientation=True)
+            idx = self.add_GPrim_solid(name+"_face%d"%iface, xyzArray, triArray,
+                                       shading=True, orientation=True)
+            if idx < 0:
+                raise RuntimeError("failed to add GPrim_solid %s" % name)
+            indices.append(idx)
+        return indices
         
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
@@ -279,7 +286,7 @@ cdef class WV_Wrapper:
             Set to true to turn on display of edges
         '''
         
-        cdef int ndata, error_code, nitems
+        cdef int ndata, error_code, nitems, ret
         cdef wvData items[5]
         
         nitems = 2
@@ -297,6 +304,8 @@ cdef class WV_Wrapper:
         error_code = wv_setData(WV_REAL64, ndata, &vertices[0], 
                                 WV_VERTICES, &items[0])
         print "Returned Status:", error_code
+        if error_code != 0:
+            return error_code
         
         ndata = indices.shape[0]
         #dtype_string = get_type(indices)
@@ -305,6 +314,8 @@ cdef class WV_Wrapper:
         error_code = wv_setData(WV_INT32, ndata, &indices[0], 
                                 WV_INDICES, &items[1])
         print "Returned Status:", error_code
+        if error_code != 0:
+            return error_code
         
         if colors is not None:
             if colors.ndim > 1:
@@ -315,6 +326,8 @@ cdef class WV_Wrapper:
             error_code = wv_setData(WV_UINT8, ndata, &colors[0], 
                                     WV_COLORS, &items[nitems])
             print "Returned Status:", error_code
+            if error_code != 0:
+                return error_code
             nitems += 1
         
         if normals is not None:
@@ -326,6 +339,8 @@ cdef class WV_Wrapper:
             error_code = wv_setData(WV_REAL32, ndata, &normals[0], 
                                     WV_NORMALS, &items[nitems])
             print "Returned Status:", error_code
+            if error_code != 0:
+                return error_code
             nitems += 1
         
         # Assemble the attributes
@@ -344,13 +359,18 @@ cdef class WV_Wrapper:
             attr = attr|WV_LINES
         
         # Add the primitive
-        print "Adding the GPrim Object"
-        error_code = wv_addGPrim(self.context, name, WV_TRIANGLE, attr, 
+        print "Adding the GPrim Object. nitems=%d, name=%s" %(nitems, name)
+        ret = wv_addGPrim(self.context, name, WV_TRIANGLE, attr, 
                                   nitems, items)
-        print "Returned Status:", error_code
+        if ret < 0:
+            print "Returned error code:", ret
+        else:
+            print "Returned Gprim index:", ret
         print "GPrim %s added." % self.context.gPrims.name
         
         print "There are %d primitives in context" % self.context.nGPrim
+
+        return ret
         
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
@@ -374,7 +394,7 @@ cdef class WV_Wrapper:
             Set to true to make this object visible. Default=True
         '''
 
-        cdef int ndata, error_code, nitems
+        cdef int ndata, error_code, nitems, ret
         cdef wvData items[2]
         nitems = 2
         
@@ -390,6 +410,8 @@ cdef class WV_Wrapper:
         error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
                                 WV_VERTICES, &items[0])
         print "Returned Status:", error_code
+        if error_code != 0:
+            return error_code
         
         ndata = indices.shape[0]
         print "Processing %d indices." % ndata
@@ -397,6 +419,8 @@ cdef class WV_Wrapper:
         error_code = wv_setData(WV_INT32, ndata, &indices[0], 
                                 WV_INDICES, &items[1])
         print "Returned Status:", error_code
+        if error_code != 0:
+            return error_code
 
         # Assemble the attributes
         attr = 0
@@ -405,12 +429,17 @@ cdef class WV_Wrapper:
         
         # Add the primitive
         print "Adding the GPrim Object"
-        error_code = wv_addGPrim(self.context, name, WV_LINE, attr, 
+        ret = wv_addGPrim(self.context, name, WV_LINE, attr, 
                                   nitems, items)
-        print "Returned Status:", error_code
+        if ret < 0:
+            print "Returned error code:", ret
+        else:
+            print "Returned Gprim index:", ret
         print "GPrim %s added." % self.context.gPrims.name
         
         print "There are %d primitives in context" % self.context.nGPrim
+
+        return ret
         
 
     #@cython.boundscheck(False)
@@ -435,7 +464,7 @@ cdef class WV_Wrapper:
             Set to true to make this object visible. Default=True
         '''
 
-        cdef int ndata, error_code, nitems
+        cdef int ndata, error_code, nitems, ret
         cdef wvData items[2]
         nitems = 1
         
@@ -449,6 +478,8 @@ cdef class WV_Wrapper:
         error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
                                 WV_VERTICES, &items[0])
         print "Returned Status:", error_code
+        if error_code != 0:
+            return error_code
         
         if colors is not None:
             if colors.ndim > 1:
@@ -459,6 +490,8 @@ cdef class WV_Wrapper:
             error_code = wv_setData(WV_REAL32, ndata, &colors[0], 
                                     WV_COLORS, &items[nitems])
             print "Returned Status:", error_code
+            if error_code != 0:
+                return error_code
             nitems += 1
         
         # Assemble the attributes
@@ -468,17 +501,22 @@ cdef class WV_Wrapper:
         
         # Add the primitive
         print "Adding the GPrim Object"
-        error_code = wv_addGPrim(self.context, name, WV_POINT, attr, 
+        ret = wv_addGPrim(self.context, name, WV_POINT, attr, 
                                   nitems, items)
-        print "Returned Status:", error_code
+        if ret < 0:
+            print "Returned error code:", ret
+        else:
+            print "Returned Gprim index:", ret
         print "GPrim %s added." % self.context.gPrims.name
         
         print "There are %d primitives in context" % self.context.nGPrim
+
+        return ret
         
         
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
-    def send_GPrim(self, wsi, bytes buf, flag, wv_SendBinaryData):
+    def send_GPrim(self, wsi, bytes buf, int flag, wv_SendBinaryData):
         '''sends the appropriate message(s) to an individual client (browser)
         should be called by the server for every current client instance
         
@@ -498,8 +536,10 @@ cdef class WV_Wrapper:
          wv_sendBinaryData(wsi, buf, len): function
              callback function to send the packets
         '''
-        
-        wv_sendGPrim(<void*>wsi, self.context, buf, flag, 
+        cdef unsigned char* cbuf = buf
+        printf("&cbuf=%p\n", &cbuf[0])
+        printf("flag=%d\n", flag)
+        wv_sendGPrim(<void*>wsi, self.context, cbuf, flag, 
                      callback, <void *>wv_SendBinaryData)
                      
     #@cython.boundscheck(False)

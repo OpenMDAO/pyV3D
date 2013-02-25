@@ -1,19 +1,24 @@
 import os
 import sys
 
+from numpy import array, float32, float64, int32, uint8
+
 from tornado import httpserver, web, escape, ioloop, websocket
 from tornado.web import RequestHandler, StaticFileHandler
 
 from argparse import ArgumentParser
 
+from pygem_diamond import gem
+from pygem_diamond.pygem import GEMParametricGeometry
 from pyV3D.pyV3D import WV_Wrapper
-from numpy import array, float32, float64, int32, uint8
+
+sample_file = os.path.join(os.path.dirname(__file__), "test", "sample.csm")
 
 debug = True
 
 if debug:
     def DEBUG(msg):
-       print '<<<' + str(os.getpid()) + '>>> --', msg
+        print '<<<' + str(os.getpid()) + '>>> --', msg
 else:
     def DEBUG(msg):
         pass
@@ -68,17 +73,36 @@ class WShandler(websocket.WebSocketHandler):
     def send_binary_data(self, wsi, buf, ibuf):
         print "In send_binary_data"
         print "length", len(buf)
-        print "buffer", [buf[i] for i in range(0, ibuf)]
-        print ibuf
+        #print "buffer", [buf[i] for i in range(0, ibuf)]
+        print "ibuf", ibuf
         #wsi.check()
         #wsi.write_to_file('cube.bin', buf)
         self.write_message(buf, binary=True)
 
-        self.myWV.remove_GPrim(0)
+        for idx in self.idxs:
+            print "removing GPrim %s" % idx
+            self.myWV.remove_GPrim(idx)
         
         return 0
 
     def create_geom(self):
+
+        myContext = gem.Context()
+        myModel = myContext.loadModel(sample_file)
+        server, filename, modeler, uptodate, myBReps, nparam, \
+            nbranch, nattr = myModel.getInfo()
+
+        iBRep = 0;
+
+        # How many faces?
+        box, typ, nnode, nedge, nloop, nface, nshell, nattr = myBReps[iBRep].getInfo()
+        print nface, "faces"
+
+        myDRep = myModel.newDRep()
+
+        # Tesselate our brep
+        # brep, maxang, maxlen, maxasg
+        myDRep.tesselate(iBRep, 0, 0, 0)
 
         myWV = WV_Wrapper()
 
@@ -88,61 +112,63 @@ class WShandler(websocket.WebSocketHandler):
 
         myWV.createContext(0, 30.0, 1.0, 10.0, eye, center, up)
 
-        # box
-        # v6----- v5
-        # /| /|
-        # v1------v0|
-        # | | | |
-        # | |v7---|-|v4
-        # |/ |/
-        # v2------v3
-        #
-        # vertex coords array
-        vertices = [
-            1, 1, 1, -1, 1, 1, -1,-1, 1, 1,-1, 1, # v0-v1-v2-v3 front
-            1, 1, 1, 1,-1, 1, 1,-1,-1, 1, 1,-1, # v0-v3-v4-v5 right
-            1, 1, 1, 1, 1,-1, -1, 1,-1, -1, 1, 1, # v0-v5-v6-v1 top
-           -1, 1, 1, -1, 1,-1, -1,-1,-1, -1,-1, 1, # v1-v6-v7-v2 left
-           -1,-1,-1, 1,-1,-1, 1,-1, 1, -1,-1, 1, # v7-v4-v3-v2 bottom
-            1,-1,-1, -1,-1,-1, -1, 1,-1, 1, 1,-1 ] # v4-v7-v6-v5 back
+        self.idxs = myWV.load_DRep(myDRep, iBRep+1, nface, name="MyBox")
 
-        # normal array
-        normals = [
-            0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, # v0-v1-v2-v3 front
-            1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, # v0-v3-v4-v5 right
-            0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, # v0-v5-v6-v1 top
-           -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, # v1-v6-v7-v2 left
-            0,-1, 0, 0,-1, 0, 0,-1, 0, 0,-1, 0, # v7-v4-v3-v2 bottom
-            0, 0,-1, 0, 0,-1, 0, 0,-1, 0, 0,-1 ] # v4-v7-v6-v5 back
+        # # box
+        # # v6----- v5
+        # # /| /|
+        # # v1------v0|
+        # # | | | |
+        # # | |v7---|-|v4
+        # # |/ |/
+        # # v2------v3
+        # #
+        # # vertex coords array
+        # vertices = [
+        #     1, 1, 1, -1, 1, 1, -1,-1, 1, 1,-1, 1, # v0-v1-v2-v3 front
+        #     1, 1, 1, 1,-1, 1, 1,-1,-1, 1, 1,-1, # v0-v3-v4-v5 right
+        #     1, 1, 1, 1, 1,-1, -1, 1,-1, -1, 1, 1, # v0-v5-v6-v1 top
+        #    -1, 1, 1, -1, 1,-1, -1,-1,-1, -1,-1, 1, # v1-v6-v7-v2 left
+        #    -1,-1,-1, 1,-1,-1, 1,-1, 1, -1,-1, 1, # v7-v4-v3-v2 bottom
+        #     1,-1,-1, -1,-1,-1, -1, 1,-1, 1, 1,-1 ] # v4-v7-v6-v5 back
 
-        # color array
-        colors = [
-            0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0, 255, # v0-v1-v2-v3
-            255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0, # v0-v3-v4-v5
-            0, 255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, # v0-v5-v6-v1
-            255, 255, 0, 255, 255, 0, 255, 255, 0, 255, 255, 0, # v1-v6-v7-v2
-            255, 0, 255, 255, 0, 255, 255, 0, 255, 255, 0, 255, # v7-v4-v3-v2
-            0, 255, 255, 0, 255, 255, 0, 255, 255, 0, 255, 255] # v4-v7-v6-v5
+        # # normal array
+        # normals = [
+        #     0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, # v0-v1-v2-v3 front
+        #     1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, # v0-v3-v4-v5 right
+        #     0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, # v0-v5-v6-v1 top
+        #    -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, # v1-v6-v7-v2 left
+        #     0,-1, 0, 0,-1, 0, 0,-1, 0, 0,-1, 0, # v7-v4-v3-v2 bottom
+        #     0, 0,-1, 0, 0,-1, 0, 0,-1, 0, 0,-1 ] # v4-v7-v6-v5 back
 
-        # index array
-        indices = [
-            0, 1, 2, 0, 2, 3, # front
-            4, 5, 6, 4, 6, 7, # right
-            8, 9,10, 8,10,11, # top
-           12,13,14, 12,14,15, # left
-           16,17,18, 16,18,19, # bottom
-           20,21,22, 20,22,23 ] # back
+        # # color array
+        # colors = [
+        #     0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0, 255, # v0-v1-v2-v3
+        #     255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0, # v0-v3-v4-v5
+        #     0, 255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, # v0-v5-v6-v1
+        #     255, 255, 0, 255, 255, 0, 255, 255, 0, 255, 255, 0, # v1-v6-v7-v2
+        #     255, 0, 255, 255, 0, 255, 255, 0, 255, 255, 0, 255, # v7-v4-v3-v2
+        #     0, 255, 255, 0, 255, 255, 0, 255, 255, 0, 255, 255] # v4-v7-v6-v5
 
-        vertices = array(vertices, dtype=float64)
-        indices = array(indices, dtype=int32)
-        colors = array(colors, dtype=uint8)
-        normals = array(normals, dtype=float32)
+        # # index array
+        # indices = [
+        #     0, 1, 2, 0, 2, 3, # front
+        #     4, 5, 6, 4, 6, 7, # right
+        #     8, 9,10, 8,10,11, # top
+        #    12,13,14, 12,14,15, # left
+        #    16,17,18, 16,18,19, # bottom
+        #    20,21,22, 20,22,23 ] # back
 
-        myWV.add_GPrim_solid("MyBox", vertices, indices, colors, normals,
-                             shading=True, orientation=True)
+        # vertices = array(vertices, dtype=float64)
+        # indices = array(indices, dtype=int32)
+        # colors = array(colors, dtype=uint8)
+        # normals = array(normals, dtype=float64)
+
+        # myWV.add_GPrim_solid("MyBox", vertices, indices, colors, normals,
+        #                      shading=True, orientation=True)
 
         self.myWV = myWV
-        
+
         buf = 147*' '
         myWV.send_GPrim(self, buf, -1, self.send_binary_data)
 

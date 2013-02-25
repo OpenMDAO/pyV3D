@@ -51,11 +51,11 @@ WV_REAL32 = 4
 WV_REAL64 = 5
 
 # Type dictionary
-TYPE_DICT = { 'uint8'   : WV_UINT8,
-              'uint16'  : WV_UINT16,
-              'int32'   : WV_INT32,
-              'float32' : WV_REAL32,
-              'float64' : WV_REAL64 }
+#TYPE_DICT = { 'uint8'   : WV_UINT8,
+#              'uint16'  : WV_UINT16,
+#              'int32'   : WV_INT32,
+#              'float32' : WV_REAL32,
+#              'float64' : WV_REAL64 }
 
 cdef extern from "wv.h":
 
@@ -141,6 +141,8 @@ cdef extern from "wv.h":
     
     void wv_finishSends(wvContext *cntxt)
     
+    void wv_destroyContext(wvContext **context)
+    
     
 cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
     '''This Cython function wraps the python return function, and
@@ -174,6 +176,12 @@ cdef class WV_Wrapper:
     def __cinit__(self):
         pass
     
+    def __dealloc__(self):
+        """Frees the memory for the wvContext object"""
+        
+        wv_destroyContext(&self.context)
+        print "Context cleaned up."
+        
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
     def createContext(self, bias, fov, zNear, zFar, 
@@ -288,12 +296,6 @@ cdef class WV_Wrapper:
         
         nitems = 2
         
-        # Check shapes
-        if vertices.ndim > 1:
-            vertices = vertices.flatten()
-        if indices.ndim > 1:
-            indices = indices.flatten()
-        
         ndata = vertices.shape[0]/3
         #dtype_string = get_type(vertices)
         print "Processing %d vertices." % ndata
@@ -311,8 +313,6 @@ cdef class WV_Wrapper:
         print "Returned Status:", error_code
         
         if colors is not None:
-            if colors.ndim > 1:
-                colors = colors.flatten()
             ndata = colors.shape[0]/3
             print "Processing %d colors." % ndata
         
@@ -322,8 +322,6 @@ cdef class WV_Wrapper:
             nitems += 1
         
         if normals is not None:
-            if normals.ndim > 1:
-                normals = normals.flatten()
             ndata = normals.shape[0]/3
             print "Processing %d normals." % ndata
         
@@ -382,12 +380,6 @@ cdef class WV_Wrapper:
         cdef wvData items[2]
         nitems = 2
         
-        # Check shapes
-        if vertices.ndim > 1:
-            vertices = vertices.flatten()
-        if indices.ndim > 1:
-            indices = indices.flatten()
-        
         ndata = vertices.shape[0]/3
         print "Processing %d vertices." % ndata
         
@@ -443,10 +435,6 @@ cdef class WV_Wrapper:
         cdef wvData items[2]
         nitems = 1
         
-        # Check shapes
-        if vertices.ndim > 1:
-            vertices = vertices.flatten()
-        
         ndata = vertices.shape[0]/3
         print "Processing %d vertices." % ndata
         
@@ -455,8 +443,6 @@ cdef class WV_Wrapper:
         print "Returned Status:", error_code
         
         if colors is not None:
-            if colors.ndim > 1:
-                colors.flatten()
             ndata = 1
             print "Processing %d colors." % ndata
         

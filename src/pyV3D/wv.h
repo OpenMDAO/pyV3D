@@ -157,5 +157,8 @@ wv_prepareForSends(wvContext *cntxt);
     
 void
 wv_finishSends(wvContext *cntxt);
+
+void 
+wv_destroyContext(wvContext **context);
     
 #endif  /*_WV_H_*/

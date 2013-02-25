@@ -69,10 +69,10 @@ myWV.add_GPrim_solid("MyBox", vertices, indices, colors, normals,
 #    define MAX_MUX_RECURSION 2
 #    define LWS_SEND_BUFFER_PRE_PADDING (4 + 10 + (2 * MAX_MUX_RECURSION))
 #    define LWS_SEND_BUFFER_POST_PADDING 1
-#     unsigned char buf[LWS_SEND_BUFFER_PRE_PADDING + 128 +
+#     unsigned char buf[LWS_SEND_BUFFER_PRE_PADDING + 320569 +
 #                             LWS_SEND_BUFFER_POST_PADDING]
 #
-# so -> 4 + 10 + 2*2 + 128 + 1 = 147
+# so -> 4 + 10 + 2*2 + 3205696 + 1 = 3205715
 
 def send_binary_data(wsi, buf, ibuf):
     print "In send_binary_data"
@@ -96,12 +96,11 @@ class wsi_server(object):
         with open(name, 'wb') as out:
             out.write(buf)
 
-buf = 146*' '
+buf = 3205696*' '
 wsi = wsi_server()
 myWV.prepare_for_sends()
 #myWV.send_GPrim(wsi, buf, 1, send_binary_data)
 #myWV.send_GPrim(wsi, buf, 0, send_binary_data)
 myWV.send_GPrim(wsi, buf, -1, send_binary_data)
 myWV.finish_sends()
-del myContext
 myWV.remove_GPrim(0)

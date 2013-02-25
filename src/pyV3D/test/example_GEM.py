@@ -61,7 +61,7 @@ myWV.createContext(0, 30.0, 1.0, 10.0, eye, center, up)
 
 myWV.load_DRep(myDRep, iBRep+1, nface, name="MyBox")
 
-buf = 146*' '
+buf = 3205696*' '
 wsi = wsi_server()
 myWV.prepare_for_sends()
 #myWV.send_GPrim(wsi, buf, 1, send_binary_data)

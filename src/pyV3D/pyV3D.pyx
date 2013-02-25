@@ -139,6 +139,10 @@ cdef extern from "wv.h":
 
     void wv_removeGPrim(wvContext *cntxt, int index)
     
+    void wv_prepareForSends(wvContext *cntxt)
+    
+    void wv_finishSends(wvContext *cntxt)
+    
     
 cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
     '''This Cython function wraps the python return function, and
@@ -336,7 +340,7 @@ cdef class WV_Wrapper:
             ndata = normals.shape[0]/3
             print "Processing %d normals." % ndata
         
-            error_code = wv_setData(WV_REAL32, ndata, &normals[0], 
+            error_code = wv_setData(WV_REAL64, ndata, &normals[0], 
                                     WV_NORMALS, &items[nitems])
             print "Returned Status:", error_code
             if error_code != 0:
@@ -407,7 +411,7 @@ cdef class WV_Wrapper:
         ndata = vertices.shape[0]/3
         print "Processing %d vertices." % ndata
         
-        error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
+        error_code = wv_setData(WV_REAL64, ndata, &vertices[0], 
                                 WV_VERTICES, &items[0])
         print "Returned Status:", error_code
         if error_code != 0:
@@ -475,7 +479,7 @@ cdef class WV_Wrapper:
         ndata = vertices.shape[0]/3
         print "Processing %d vertices." % ndata
         
-        error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
+        error_code = wv_setData(WV_REAL64, ndata, &vertices[0], 
                                 WV_VERTICES, &items[0])
         print "Returned Status:", error_code
         if error_code != 0:
@@ -553,3 +557,15 @@ cdef class WV_Wrapper:
         
         wv_removeGPrim(self.context, index)
         print "Gprim %d removed from context" % index
+        
+        
+    def prepare_for_sends(self):
+        '''The server needs to call this before sending GPrim info.'''
+
+        wv_prepareForSends(self.context)
+        
+        
+    def finish_sends(self):
+        '''The server needs to call this before sending GPrim info.'''
+        
+        wv_finishSends(self.context)

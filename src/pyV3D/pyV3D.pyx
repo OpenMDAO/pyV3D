@@ -233,7 +233,7 @@ cdef class WV_Wrapper:
             triArray = triArray.flatten()
             xyzArray = xyzArray.flatten()
             
-            idx = self.add_GPrim_solid(name+"_face%d"%iface, xyzArray, triArray,
+            idx = self.add_GPrim_solid(name+"_face%d" % iface, xyzArray, triArray,
                                        shading=True, orientation=True)
             if idx < 0:
                 raise RuntimeError("failed to add GPrim_solid %s" % name)
@@ -541,8 +541,6 @@ cdef class WV_Wrapper:
              callback function to send the packets
         '''
         cdef unsigned char* cbuf = buf
-        printf("&cbuf=%p\n", &cbuf[0])
-        printf("flag=%d\n", flag)
         wv_sendGPrim(<void*>wsi, self.context, cbuf, flag, 
                      callback, <void *>wv_SendBinaryData)
                      

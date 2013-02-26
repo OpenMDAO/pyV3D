@@ -12,7 +12,8 @@ from pygem_diamond import gem
 from pygem_diamond.pygem import GEMParametricGeometry
 from pyV3D.pyV3D import WV_Wrapper
 
-sample_file = os.path.join(os.path.dirname(__file__), "test", "sample.csm")
+#sample_file = os.path.join(os.path.dirname(__file__), "test", "sample.csm")
+sample_file = os.path.join(os.path.dirname(__file__), "test", "box1.csm")
 
 debug = True
 
@@ -47,6 +48,7 @@ def get_argument_parser():
 
 class WShandler(websocket.WebSocketHandler):
     def __init__(self, application, request, **kwargs):
+        self.idxs = []
         self._subprotos = set(kwargs.get('subprotos', []))
         if 'subprotos' in kwargs:
             del kwargs['subprotos']
@@ -73,7 +75,6 @@ class WShandler(websocket.WebSocketHandler):
     def send_binary_data(self, wsi, buf, ibuf):
         print "In send_binary_data"
         print "length", len(buf)
-        #print "buffer", [buf[i] for i in range(0, ibuf)]
         print "ibuf", ibuf
         #wsi.check()
         #wsi.write_to_file('cube.bin', buf)
@@ -82,6 +83,8 @@ class WShandler(websocket.WebSocketHandler):
         for idx in self.idxs:
             print "removing GPrim %s" % idx
             self.myWV.remove_GPrim(idx)
+
+        self.idxs = []
         
         return 0
 
@@ -92,19 +95,12 @@ class WShandler(websocket.WebSocketHandler):
         server, filename, modeler, uptodate, myBReps, nparam, \
             nbranch, nattr = myModel.getInfo()
 
-        iBRep = 0;
-
-        # How many faces?
-        box, typ, nnode, nedge, nloop, nface, nshell, nattr = myBReps[iBRep].getInfo()
-        print nface, "faces"
+        print 'len(myBReps) = ', len(myBReps)
 
         myDRep = myModel.newDRep()
 
-        # Tesselate our brep
-        # brep, maxang, maxlen, maxasg
-        myDRep.tesselate(iBRep, 0, 0, 0)
-
         myWV = WV_Wrapper()
+        self.myWV = myWV
 
         eye    = array([1.0, 0.0, 7.0], dtype=float32)
         center = array([0.0, 0.0, 0.0], dtype=float32)
@@ -112,67 +108,23 @@ class WShandler(websocket.WebSocketHandler):
 
         myWV.createContext(0, 30.0, 1.0, 10.0, eye, center, up)
 
-        self.idxs = myWV.load_DRep(myDRep, iBRep+1, nface, name="MyBox")
+        for i,brep in enumerate(myBReps):
+            # How many faces?
+            box, typ, nnode, nedge, nloop, nface, nshell, nattr = brep.getInfo()
+            print nface, "faces"
 
-        # # box
-        # # v6----- v5
-        # # /| /|
-        # # v1------v0|
-        # # | | | |
-        # # | |v7---|-|v4
-        # # |/ |/
-        # # v2------v3
-        # #
-        # # vertex coords array
-        # vertices = [
-        #     1, 1, 1, -1, 1, 1, -1,-1, 1, 1,-1, 1, # v0-v1-v2-v3 front
-        #     1, 1, 1, 1,-1, 1, 1,-1,-1, 1, 1,-1, # v0-v3-v4-v5 right
-        #     1, 1, 1, 1, 1,-1, -1, 1,-1, -1, 1, 1, # v0-v5-v6-v1 top
-        #    -1, 1, 1, -1, 1,-1, -1,-1,-1, -1,-1, 1, # v1-v6-v7-v2 left
-        #    -1,-1,-1, 1,-1,-1, 1,-1, 1, -1,-1, 1, # v7-v4-v3-v2 bottom
-        #     1,-1,-1, -1,-1,-1, -1, 1,-1, 1, 1,-1 ] # v4-v7-v6-v5 back
+            # Tesselate the brep
+            # brep, maxang, maxlen, maxasg
+            myDRep.tesselate(i+1, 0, 0, 0)
 
-        # # normal array
-        # normals = [
-        #     0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, # v0-v1-v2-v3 front
-        #     1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, # v0-v3-v4-v5 right
-        #     0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, # v0-v5-v6-v1 top
-        #    -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, # v1-v6-v7-v2 left
-        #     0,-1, 0, 0,-1, 0, 0,-1, 0, 0,-1, 0, # v7-v4-v3-v2 bottom
-        #     0, 0,-1, 0, 0,-1, 0, 0,-1, 0, 0,-1 ] # v4-v7-v6-v5 back
+            self.idxs.extend(myWV.load_DRep(myDRep, i+1, nface, name="MyBox"))
 
-        # # color array
-        # colors = [
-        #     0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0, 255, # v0-v1-v2-v3
-        #     255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0, # v0-v3-v4-v5
-        #     0, 255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, # v0-v5-v6-v1
-        #     255, 255, 0, 255, 255, 0, 255, 255, 0, 255, 255, 0, # v1-v6-v7-v2
-        #     255, 0, 255, 255, 0, 255, 255, 0, 255, 255, 0, 255, # v7-v4-v3-v2
-        #     0, 255, 255, 0, 255, 255, 0, 255, 255, 0, 255, 255] # v4-v7-v6-v5
+        myWV.prepare_for_sends()
 
-        # # index array
-        # indices = [
-        #     0, 1, 2, 0, 2, 3, # front
-        #     4, 5, 6, 4, 6, 7, # right
-        #     8, 9,10, 8,10,11, # top
-        #    12,13,14, 12,14,15, # left
-        #    16,17,18, 16,18,19, # bottom
-        #    20,21,22, 20,22,23 ] # back
-
-        # vertices = array(vertices, dtype=float64)
-        # indices = array(indices, dtype=int32)
-        # colors = array(colors, dtype=uint8)
-        # normals = array(normals, dtype=float64)
-
-        # myWV.add_GPrim_solid("MyBox", vertices, indices, colors, normals,
-        #                      shading=True, orientation=True)
-
-        self.myWV = myWV
-
-        buf = 147*' '
+        buf = (3205696+19)*' '
         myWV.send_GPrim(self, buf, -1, self.send_binary_data)
 
-
+        myWV.finish_sends()
 
 # class MainHandler(RequestHandler):
 #     def get(self):

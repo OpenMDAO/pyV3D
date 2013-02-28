@@ -47,9 +47,21 @@ up     = array([0.0, 1.0, 0.0], dtype=float32)
 
 myWV.createContext(0, 30.0, 1.0, 10.0, eye, center, up)
 
+# Old way
+#server, filename, modeler, uptodate, myBReps, nparam, \
+#    nbranch, nattr = myModel.getInfo() 
+#box, typ, nnode, nedge, nloop, nface, nshell, \
+#            nattr = myBReps[iBRep].getInfo()
+#print "my breps", len(myBReps)
+#myDRep = myModel.newDRep()
+#myDRep.tessellate(iBRep, 0, 0, 0)
 #myWV.load_DRep(myDRep, iBRep+1, nface, name="MyBox")
-x, y = myGeometry.return_visualization_data(iBRep)
-print x, y
+
+# Testing the internals
+#data = myGeometry.return_visualization_data(iBRep)
+#print data
+
+myWV.load_geometry(myGeometry, name="MyBox")
 
 buf = 3205696*' '
 wsi = wsi_server()

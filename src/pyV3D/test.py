@@ -1,5 +1,5 @@
 
-from pyV3D import WV_Wrapper
+from pyV3D.pyV3D import WV_Wrapper
 from numpy import array, float64, float32, int32, uint8
 
 

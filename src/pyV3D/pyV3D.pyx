@@ -229,8 +229,36 @@ cdef class WV_Wrapper:
         print self.context.zFar
         print self.context.eye[0]
         
+    def load_geometry(self, geometry, sub_index=None, name='geometry'):
+        '''Load a tesselation from a geometry model.
+        
+        geometry: GEMGeometry
+            A geometry object that adheres to the IGeometry interface
+            
+        sub_index: int
+            An index into the geometry object that designates a
+            submodel to be visualized.
+        '''
+        
+        data = geometry.return_visualization_data(sub_index)
+        
+        indices = []
+        for i, tesselation in enumerate(data):
+        
+            idx = self.add_GPrim_solid(name+"_%d" % i, 
+                                       tesselation[0], tesselation[1],
+                                       shading=True, orientation=True)
+            if idx < 0:
+                raise RuntimeError("failed to add GPrim_solid %s" % name)
+                
+            indices.append(idx)
+            
+        return indices        
+        
     def load_DRep(self, drep, ibrep, nfaces, name=None):
-        '''Load model ibrep from a GEM DRep'''
+        '''Load model ibrep from a GEM DRep
+        
+        TODO: This method is deprecated.'''
         
         indices = []
         for iface in range(1, nfaces+1):
@@ -251,10 +279,10 @@ cdef class WV_Wrapper:
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
     def add_GPrim_solid(self, name, 
-                        np.ndarray[double, mode="c"] vertices not None,
+                        np.ndarray[float, mode="c"] vertices not None,
                         np.ndarray[int, mode="c"] indices not None,
                         np.ndarray[unsigned char, mode="c"] colors=None,
-                        np.ndarray[double, mode="c"] normals=None,
+                        np.ndarray[float, mode="c"] normals=None,
                         visible=True,
                         transparency=False,
                         shading=False,
@@ -304,17 +332,15 @@ cdef class WV_Wrapper:
         nitems = 2
         
         ndata = vertices.shape[0]/3
-        #dtype_string = get_type(vertices)
         print "Processing %d vertices." % ndata
         
-        error_code = wv_setData(WV_REAL64, ndata, &vertices[0], 
+        error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
                                 WV_VERTICES, &items[0])
         print "Returned Status:", error_code
         if error_code != 0:
             return error_code
         
         ndata = indices.shape[0]
-        #dtype_string = get_type(indices)
         print "Processing %d indices." % ndata
         
         error_code = wv_setData(WV_INT32, ndata, &indices[0], 
@@ -338,7 +364,7 @@ cdef class WV_Wrapper:
             ndata = normals.shape[0]/3
             print "Processing %d normals." % ndata
         
-            error_code = wv_setData(WV_REAL64, ndata, &normals[0], 
+            error_code = wv_setData(WV_REAL32, ndata, &normals[0], 
                                     WV_NORMALS, &items[nitems])
             print "Returned Status:", error_code
             if error_code != 0:
@@ -377,7 +403,7 @@ cdef class WV_Wrapper:
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
     def add_GPrim_wireframe(self, name,
-                            np.ndarray[double, mode="c"] vertices not None,
+                            np.ndarray[float, mode="c"] vertices not None,
                             np.ndarray[int, mode="c"] indices not None,
                             visible=True,
                             ):
@@ -403,7 +429,7 @@ cdef class WV_Wrapper:
         ndata = vertices.shape[0]/3
         print "Processing %d vertices." % ndata
         
-        error_code = wv_setData(WV_REAL64, ndata, &vertices[0], 
+        error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
                                 WV_VERTICES, &items[0])
         print "Returned Status:", error_code
         if error_code != 0:
@@ -441,7 +467,7 @@ cdef class WV_Wrapper:
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
     def add_GPrim_pointcloud(self, name,
-                             np.ndarray[double, mode="c"] vertices not None,
+                             np.ndarray[float, mode="c"] vertices not None,
                              np.ndarray[unsigned char, mode="c"] colors=None,
                              visible=True,
                              ):
@@ -467,7 +493,7 @@ cdef class WV_Wrapper:
         ndata = vertices.shape[0]/3
         print "Processing %d vertices." % ndata
         
-        error_code = wv_setData(WV_REAL64, ndata, &vertices[0], 
+        error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
                                 WV_VERTICES, &items[0])
         print "Returned Status:", error_code
         if error_code != 0:

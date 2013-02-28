@@ -4,7 +4,7 @@ import os
 from numpy import array, float32, int32, uint8
 
 from pygem_diamond import gem
-from pygem_diamond.pygem import GEMParametricGeometry
+from pygem_diamond.pygem import GEMParametricGeometry, GEMGeometry
 from pyV3D.pyV3D import WV_Wrapper
 
 sample_file = os.path.join(os.path.dirname(__file__), "sample.csm")
@@ -34,22 +34,10 @@ class wsi_server(object):
             
 myContext = gem.Context()
 myModel = myContext.loadModel(sample_file)
-server, filename, modeler, uptodate, myBReps, nparam, \
-    nbranch, nattr = myModel.getInfo()
 
-iBRep = 0;
-
-# How many faces?
-box, typ, nnode, nedge, nloop, nface, nshell, nattr = myBReps[iBRep].getInfo()
-print nface, "faces"
-
-myDRep = myModel.newDRep()
-
-# Tesselate our brep
-# brep, maxang, maxlen, maxasg
-myDRep.tesselate(iBRep, 0, 0, 0)
-
-#triArray, xyzArray = myDRep.getTessel(1, 1)
+myGeometry = GEMGeometry()
+myGeometry._model = myModel
+iBRep = 0
 
 myWV = WV_Wrapper()
 
@@ -59,9 +47,23 @@ up     = array([0.0, 1.0, 0.0], dtype=float32)
 
 myWV.createContext(0, 30.0, 1.0, 10.0, eye, center, up)
 
-myWV.load_DRep(myDRep, iBRep+1, nface, name="MyBox")
+# Old way
+#server, filename, modeler, uptodate, myBReps, nparam, \
+#    nbranch, nattr = myModel.getInfo() 
+#box, typ, nnode, nedge, nloop, nface, nshell, \
+#            nattr = myBReps[iBRep].getInfo()
+#print "my breps", len(myBReps)
+#myDRep = myModel.newDRep()
+#myDRep.tessellate(iBRep, 0, 0, 0)
+#myWV.load_DRep(myDRep, iBRep+1, nface, name="MyBox")
 
-buf = 146*' '
+# Testing the internals
+#data = myGeometry.return_visualization_data(iBRep)
+#print data
+
+myWV.load_geometry(myGeometry, name="MyBox")
+
+buf = 3205696*' '
 wsi = wsi_server()
 myWV.prepare_for_sends()
 #myWV.send_GPrim(wsi, buf, 1, send_binary_data)

@@ -43,7 +43,6 @@ wv_realloc(/*@null@*/ /*@only@*/ /*@returned@*/ void *ptr, int nbytes)
   return realloc(ptr, nbytes);
 }
 
-
 void
 wv_free(/*@null@*/ /*@only@*/ void *ptr)
 {

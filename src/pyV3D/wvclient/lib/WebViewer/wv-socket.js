@@ -79,7 +79,7 @@ function getSockets(wsURLp)
 {
   var ws_ctor = window['MozWebSocket'] ? window['MozWebSocket'] : window['WebSocket'];
 
-  var socketGp        = new ws_ctor(wsURLp+'/binary', "pyv3d-binary/1.0");
+  var socketGp        = new ws_ctor(wsURLp+'/binary'); //, "pyv3d-binary/1.0");
   socketGp.binaryType = 'arraybuffer';
   socketGp.onopen     = function(evt) { wsGpOnOpen(evt)    };
   socketGp.onclose    = function(evt) { wsGpOnClose(evt)   };
@@ -87,7 +87,7 @@ function getSockets(wsURLp)
   socketGp.onerror    = function(evt) { wsGpOnError(evt)   };
   g.socketGp          = socketGp;
   
-  var socketUt       = new ws_ctor(wsURLp, "pyv3d-text/1.0");
+  var socketUt       = new ws_ctor(wsURLp); //, "pyv3d-text/1.0");
   socketUt.onopen    = function(evt) { wsUtOnOpen(evt)    };
   socketUt.onclose   = function(evt) { wsUtOnClose(evt)   };
   socketUt.onmessage = function(evt) { wsUtOnMessage(evt) };

@@ -143,6 +143,13 @@ cdef extern from "wv.h":
     
     void wv_finishSends(wvContext *cntxt)
     
+import sys
+
+def dbg(*args):
+    for msg in args:
+        sys.stderr.write(str(msg))
+        sys.stderr.write(" ")
+    sys.stderr.write("\n")
     
 cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
     '''This Cython function wraps the python return function, and
@@ -215,11 +222,12 @@ cdef class WV_Wrapper:
         czNear = zNear
         czFar = zFar
             
+        dbg('creating context')
         self.context = wv_createContext(cbias, cfov, czNear, czFar, 
                                         &eye[0], &center[0], &up[0])
         
-        print self.context.zFar
-        print self.context.eye[0]
+        dbg("zFar=%s" % self.context.zFar)
+        dbg("eye[0]=%s" % self.context.eye[0])
         
     def load_DRep(self, drep, ibrep, nfaces, name=None):
         '''Load model ibrep from a GEM DRep'''
@@ -290,8 +298,9 @@ cdef class WV_Wrapper:
             Set to true to turn on display of edges
         '''
         
-        cdef int ndata, error_code, nitems, ret
+        cdef int ndata, error_code, nitems, attr, ret
         cdef wvData items[5]
+        cdef char *cname
         
         nitems = 2
         
@@ -303,21 +312,21 @@ cdef class WV_Wrapper:
         
         ndata = vertices.shape[0]/3
         #dtype_string = get_type(vertices)
-        print "Processing %d vertices." % ndata
+        dbg("Processing %d vertices." % ndata)
         
         error_code = wv_setData(WV_REAL64, ndata, &vertices[0], 
                                 WV_VERTICES, &items[0])
-        print "Returned Status:", error_code
+        dbg("Returned Status:", error_code)
         if error_code != 0:
             return error_code
         
         ndata = indices.shape[0]
         #dtype_string = get_type(indices)
-        print "Processing %d indices." % ndata
+        dbg("Processing %d indices." % ndata)
         
         error_code = wv_setData(WV_INT32, ndata, &indices[0], 
                                 WV_INDICES, &items[1])
-        print "Returned Status:", error_code
+        dbg("Returned Status: %s" % error_code)
         if error_code != 0:
             return error_code
         
@@ -325,11 +334,11 @@ cdef class WV_Wrapper:
             if colors.ndim > 1:
                 colors = colors.flatten()
             ndata = colors.shape[0]/3
-            print "Processing %d colors." % ndata
+            dbg("Processing %d colors." % ndata)
         
             error_code = wv_setData(WV_UINT8, ndata, &colors[0], 
                                     WV_COLORS, &items[nitems])
-            print "Returned Status:", error_code
+            dbg("Returned Status:", error_code)
             if error_code != 0:
                 return error_code
             nitems += 1
@@ -338,11 +347,11 @@ cdef class WV_Wrapper:
             if normals.ndim > 1:
                 normals = normals.flatten()
             ndata = normals.shape[0]/3
-            print "Processing %d normals." % ndata
+            dbg("Processing %d normals." % ndata)
         
             error_code = wv_setData(WV_REAL64, ndata, &normals[0], 
                                     WV_NORMALS, &items[nitems])
-            print "Returned Status:", error_code
+            dbg("Returned Status:", error_code)
             if error_code != 0:
                 return error_code
             nitems += 1
@@ -361,18 +370,22 @@ cdef class WV_Wrapper:
             attr = attr|WV_POINTS
         if lines_visible:
             attr = attr|WV_LINES
+
+        dbg("attr=",attr)
         
         # Add the primitive
-        print "Adding the GPrim Object. nitems=%d, name=%s" %(nitems, name)
-        ret = wv_addGPrim(self.context, name, WV_TRIANGLE, attr, 
+        dbg("Adding the GPrim Object. nitems=%d, name=%s" %(nitems, name))
+        cname = name
+        ret = wv_addGPrim(self.context, cname, WV_TRIANGLE, attr, 
                                   nitems, items)
+        dbg("done adding GPrim")
         if ret < 0:
-            print "Returned error code:", ret
+            dbg("Returned error code:", ret)
         else:
-            print "Returned Gprim index:", ret
-        print "GPrim %s added." % self.context.gPrims.name
+            dbg("Returned Gprim index:", ret)
+        dbg("GPrim %s added." % self.context.gPrims.name)
         
-        print "There are %d primitives in context" % self.context.nGPrim
+        dbg("There are %d primitives in context" % self.context.nGPrim)
 
         return ret
         
@@ -409,20 +422,20 @@ cdef class WV_Wrapper:
             indices = indices.flatten()
         
         ndata = vertices.shape[0]/3
-        print "Processing %d vertices." % ndata
+        dbg("Processing %d vertices." % ndata)
         
         error_code = wv_setData(WV_REAL64, ndata, &vertices[0], 
                                 WV_VERTICES, &items[0])
-        print "Returned Status:", error_code
+        dbg("Returned Status:", error_code)
         if error_code != 0:
             return error_code
         
         ndata = indices.shape[0]
-        print "Processing %d indices." % ndata
+        dbg("Processing %d indices." % ndata)
         
         error_code = wv_setData(WV_INT32, ndata, &indices[0], 
                                 WV_INDICES, &items[1])
-        print "Returned Status:", error_code
+        dbg("Returned Status:", error_code)
         if error_code != 0:
             return error_code
 
@@ -432,16 +445,16 @@ cdef class WV_Wrapper:
             attr = attr|WV_ON
         
         # Add the primitive
-        print "Adding the GPrim Object"
+        dbg("Adding the GPrim Object")
         ret = wv_addGPrim(self.context, name, WV_LINE, attr, 
-                                  nitems, items)
+                          nitems, items)
         if ret < 0:
-            print "Returned error code:", ret
+            dbg("Returned error code:", ret)
         else:
-            print "Returned Gprim index:", ret
-        print "GPrim %s added." % self.context.gPrims.name
+            dbg("Returned Gprim index:", ret)
+        dbg("GPrim %s added." % self.context.gPrims.name)
         
-        print "There are %d primitives in context" % self.context.nGPrim
+        dbg("There are %d primitives in context" % self.context.nGPrim)
 
         return ret
         
@@ -554,7 +567,7 @@ cdef class WV_Wrapper:
         '''
         
         wv_removeGPrim(self.context, index)
-        print "Gprim %d removed from context" % index
+        dbg("Gprim %d removed from context" % index)
         
         
     def prepare_for_sends(self):

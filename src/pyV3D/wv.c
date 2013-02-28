@@ -175,14 +175,18 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct)
   float          *fdata, *fptr;
   double         *ddata;
 
+  fprintf(stderr, "wv_setData\n");
+
   dstruct->dataType = 0;
   dstruct->dataLen  = len;
   dstruct->dataPtr  = NULL;
   dstruct->data[0]  = 0.0;
   dstruct->data[1]  = 0.0;
   dstruct->data[2]  = 0.0;
-  if (len <= 0) return -4;
-  
+  if (len <= 0) {
+    fprintf(stderr, "returning -4\n");
+    return -4;
+  }
   /* single data entry */
   if ((len == 1) &&
       ((VBOtype == WV_COLORS) || (VBOtype == WV_NORMALS) ||
@@ -190,6 +194,7 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct)
        (VBOtype == WV_BCOLOR))) {
     switch (type) {
       case WV_UINT8:
+      fprintf(stderr, "WV_UINT8\n");
         cdata = (unsigned char *) data;
         if (VBOtype == WV_NORMALS) return -2;
         for (i = 0; i < 3; i++) {
@@ -198,24 +203,29 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct)
         }
         break;
       case WV_REAL32:
+      fprintf(stderr, "WV_REAL32\n");
         fdata = (float *) data;
         dstruct->data[0] = fdata[0];
         dstruct->data[1] = fdata[1];
         dstruct->data[2] = fdata[2];
         break;
       case WV_REAL64:
+      fprintf(stderr, "WV_REAL64\n");
         ddata = (double *) data;
         dstruct->data[0] = ddata[0];
         dstruct->data[1] = ddata[1];
         dstruct->data[2] = ddata[2];
         break;
       default:
+        fprintf(stderr, "default\n");
         return -3;
     }
 
     dstruct->dataType = VBOtype;
     return 0;
   }
+
+   fprintf(stderr, "we have array data\n");
 
   /* an array of data */
   fptr = NULL;
@@ -224,6 +234,7 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct)
   switch (VBOtype) {
     case WV_VERTICES:
     case WV_NORMALS:
+        fprintf(stderr, "WV_VERTICES or WV_NORMALS\n");
       fptr = (float *) wv_alloc(3*len*sizeof(float));
       if (fptr == NULL) return -1;
       dstruct->dataPtr = fptr;
@@ -231,16 +242,19 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct)
     case WV_INDICES:
     case WV_PINDICES:
     case WV_LINDICES:
+        fprintf(stderr, "WV_?INDICES\n");
       iptr = (int *) wv_alloc(len*sizeof(int));
       if (iptr == NULL) return -1;
       dstruct->dataPtr = iptr;
       break;
     case WV_COLORS:
+        fprintf(stderr, "WV_COLORS\n");
       cptr = (unsigned char *) wv_alloc(3*len*sizeof(unsigned char));
       if (cptr == NULL) return -1;
       dstruct->dataPtr = cptr;
       break;
     default:
+        fprintf(stderr, "default: returning -2\n");
       return -2;
   }
 
@@ -308,9 +322,9 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct)
       if ((VBOtype == WV_VERTICES) || (VBOtype == WV_NORMALS)) {
         if (fptr == NULL) return -1;
         for (i = 0; i < len; i++) {
-          fptr[3*i  ] = ddata[3*i  ];
-          fptr[3*i+1] = ddata[3*i+1];
-          fptr[3*i+2] = ddata[3*i+2];
+          fptr[3*i  ] = (float) ddata[3*i  ];
+          fptr[3*i+1] = (float) ddata[3*i+1];
+          fptr[3*i+2] = (float) ddata[3*i+2];
         }
       } else if (VBOtype == WV_COLORS) {
         if (cptr == NULL) return -1;
@@ -1581,15 +1595,24 @@ wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs,
   float   *norm;
   wvGPrim *gp;
 
+  fprintf(stderr, "in wv_addGPrim\n");
+
   if (name == NULL) return -3;
   nameLen = strlen(name);
   if (nameLen == 0) return -3;
 
-  if (cntxt->gPrims != NULL)
-    for (i = 0; i < cntxt->nGPrim; i++)
+  fprintf(stderr, "nameLen=%d\n", nameLen);
+  fprintf(stderr, "cntxt->gPrims=%p\n", cntxt->gPrims);
+
+  if (cntxt->gPrims != NULL) {
+    for (i = 0; i < cntxt->nGPrim; i++) {
+      fprintf(stderr, "checking gPrims[%d]\n", i);
       if (strcmp(name, cntxt->gPrims[i].name) == 0) return -2;
+    }
+  }
 
   nameLen += 4 - nameLen%4;
+  fprintf(stderr, "new nameLen=%d\n", nameLen);
   nam = (char *) wv_alloc(nameLen*sizeof(char));
   if (nam == NULL) return -1;
   for (i = 0; i < nameLen; i++) nam[i] = 0;
@@ -1597,13 +1620,16 @@ wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs,
     if (name[i] == 0) break;
     nam[i] = name[i];
   }
+  fprintf(stderr, "nam=%s\n", nam);
 
   while (cntxt->ioAccess != 0) usleep(10000);
   cntxt->dataAccess = 1;
   if (cntxt->nGPrim == cntxt->mGPrim) {
     if (cntxt->nGPrim == 0) {
+      fprintf(stderr, "wv_alloc of GPrim\n");
       gp = (wvGPrim *) wv_alloc(sizeof(wvGPrim));
     } else {
+      fprintf(stderr, "wv_realloc of GPrim\n");
       gp = (wvGPrim *) wv_realloc( cntxt->gPrims,
                                   (cntxt->mGPrim+1)*sizeof(wvGPrim));
     }
@@ -1618,7 +1644,9 @@ wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs,
     wv_free(nam);
     return -1;
   }
+  fprintf(stderr, "setting gp\n");
   gp = &cntxt->gPrims[cntxt->nGPrim];
+  fprintf(stderr, "gp=%p\n", gp);
   cntxt->dataAccess = 0;
 
   gp->gtype     = gtype;
@@ -1653,11 +1681,15 @@ wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs,
   gp->pIndices  = NULL;
   gp->stripes   = NULL;
   
+  fprintf(stderr, "gp attrs set\n");
+
   /* parse through the data items and store away */
   for (i = 0; i < nItems; i++) {
     type = items[i].dataType;
+      fprintf(stderr, "type=%d, i=%d\n", type, i);
     switch (type) {
       case WV_VERTICES:
+       fprintf(stderr, "WV_VERTICES\n");
         if (gp->nVerts == 0) {
           gp->nVerts = items[i].dataLen;
         } else {
@@ -1669,10 +1701,12 @@ wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs,
         gp->vertices = (float *) items[i].dataPtr;
         break;
       case WV_INDICES:
+       fprintf(stderr, "WV_INDICES\n");
         gp->nIndex  = items[i].dataLen;
         gp->indices = (int *) items[i].dataPtr;
         break;
       case WV_COLORS:
+       fprintf(stderr, "WV_COLORS\n");
         if (items[i].dataLen == 1) {
           if (gtype == WV_POINT) {
             gp->pColor[0] = items[i].data[0];
@@ -1703,6 +1737,7 @@ wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs,
         }
         break;
       case WV_NORMALS:
+       fprintf(stderr, "WV_NORMALS\n");
         if (items[i].dataLen == 1) {
           gp->normal[0] = items[i].data[0];
           gp->normal[1] = items[i].data[1];
@@ -1720,32 +1755,40 @@ wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs,
         }
         break;
       case WV_PINDICES:
+       fprintf(stderr, "WV_PINDICES\n");
         gp->npIndex  = items[i].dataLen;
         gp->pIndices = (int *) items[i].dataPtr;
         break;
       case WV_LINDICES:
+       fprintf(stderr, "WV_LINDICES\n");
         gp->nlIndex  = items[i].dataLen;
         gp->lIndices = (int *) items[i].dataPtr;
         break;
       case WV_PCOLOR:
+       fprintf(stderr, "WV_PCOLOR\n");
         gp->pColor[0] = items[i].data[0];
         gp->pColor[1] = items[i].data[1];
         gp->pColor[2] = items[i].data[2];
         break;
       case WV_LCOLOR:
+       fprintf(stderr, "WV_LCOLOR\n");
         gp->lColor[0] = items[i].data[0];
         gp->lColor[1] = items[i].data[1];
         gp->lColor[2] = items[i].data[2];
         break;
       case WV_BCOLOR:
+       fprintf(stderr, "WV_BCOLOR\n");
         gp->bColor[0] = items[i].data[0];
         gp->bColor[1] = items[i].data[1];
         gp->bColor[2] = items[i].data[2];
         break;
     }
   }
+  fprintf(stderr, "for loop done\n");
+
   /* do we have anything? */
   if ((gp->nVerts == 0) || (gp->vertices == NULL)) {
+       fprintf(stderr, "nVerts or vertices are NULL\n");
     wv_free(nam);
     return -5;
   }

@@ -114,14 +114,17 @@ class WSBinaryHandler(BaseWSHandler):
 
     def create_geom(self):
 
-        self.myContext = gem.Context()
-        myModel = self.myContext.loadModel(sample_file)
-        server, filename, modeler, uptodate, myBReps, nparam, \
-            nbranch, nattr = myModel.getInfo()
+        self.my_param_geom = GEMParametricGeometry()
+        self.my_param_geom.model_file = sample_file
 
-        print 'len(myBReps) = ', len(myBReps)
+        #self.myContext = gem.Context()
+        #myModel = self.myContext.loadModel(sample_file)
+        # server, filename, modeler, uptodate, myBReps, nparam, \
+        #     nbranch, nattr = myModel.getInfo()
 
-        myDRep = myModel.newDRep()
+        # print 'len(myBReps) = ', len(myBReps)
+
+        # myDRep = myModel.newDRep()
 
         self.myWV = myWV = WV_Wrapper()
 
@@ -131,32 +134,36 @@ class WSBinaryHandler(BaseWSHandler):
 
         myWV.createContext(0, 30.0, 1.0, 10.0, eye, center, up)
 
-        for i,brep in enumerate(myBReps):
-            # How many faces?
-            box, typ, nnode, nedge, nloop, nface, nshell, nattr = brep.getInfo()
-            print nface, "faces"
+        # for i,brep in enumerate(myBReps):
+        #     # How many faces?
+        #     box, typ, nnode, nedge, nloop, nface, nshell, nattr = brep.getInfo()
+        #     print nface, "faces"
 
-            name = "brep_%d" % (i+1)
+        #     name = "brep_%d" % (i+1)
 
-            # Tesselate the brep
-            # brep, maxang, maxlen, maxasg
-            myDRep.tessellate(i+1, 0, 0, 0)
+        #     # Tesselate the brep
+        #     # brep, maxang, maxlen, maxasg
+        #     myDRep.tessellate(i+1, 0, 0, 0)
 
-            self.idxs.extend(myWV.load_DRep(myDRep, i+1, nface, name=name))
+        #     self.idxs.extend(myWV.load_DRep(myDRep, i+1, nface, name=name))
+
+        geom = self.my_param_geom.get_geometry()
+        if geom is None:
+            raise RuntimeError("can't get Geometry object")
+
+        indices = myWV.load_geometry(geom)
 
         print 'prep for send'
         myWV.prepare_for_sends()
 
         buf = (3205696+19)*' '
-        print 'sendGRim'
-        myWV.send_GPrim(self, buf, -1, self.send_binary_data)
+        print 'sendGPrim'
+        myWV.send_GPrim(self, buf, 1, self.send_binary_data)  # send init packet
+        myWV.send_GPrim(self, buf, -1, self.send_binary_data)  # send initial suite of GPrims
 
         print 'finish sends'
         myWV.finish_sends()
 
-# class MainHandler(RequestHandler):
-#     def get(self):
-#         self.render('index.html')
 
 def main():
     ''' Process command line arguments and run.

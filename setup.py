@@ -34,7 +34,7 @@ config.add_extension('pyV3D',
                      library_dirs=library_dirs)
 config.add_data_files('LICENSE.txt','README.txt')
 
-kwds = {'install_requires':['numpy'],
+kwds = {'install_requires':['numpy', 'tornado'],
         'author': '',
         'author_email': '',
         'classifiers': ['Intended Audience :: Science/Research',

@@ -45,39 +45,52 @@ def get_argument_parser():
 #
 # so -> 4 + 10 + 2*2 + 128 + 1 = 147
 
-
-class WShandler(websocket.WebSocketHandler):
+class WSTextHandler(websocket.WebSocketHandler):
     def __init__(self, application, request, **kwargs):
-        self.idxs = []
-        self._subprotos = set(kwargs.get('subprotos', []))
-        if 'subprotos' in kwargs:
-            del kwargs['subprotos']
-        super(WShandler, self).__init__(application, request, **kwargs)
+        super(WSTextHandler, self).__init__(application, request, **kwargs)
     
     def open(self):
-        print "WebSocket opened"
-        self.create_geom()
+        print "text WebSocket opened"
 
     def on_message(self, message):
-        print "got message: %s" % message
-        self.write_message(u"You said: " + message)
+        print "text WS: got message: %s" % message
+        #self.write_message(u"You said: " + message)
 
     def on_close(self):
-        print "WebSocket closed"
+        print "text WebSocket closed"
 
     def select_subprotocol(self, subprotocols):
         print 'asked for subprotocols: %s' % subprotocols
-        for proto in subprotocols:
-            if proto in self._subprotos:
-                return proto
+        if "pyv3d-text/1.0" in subprotocols:
+            return "pyv3d-text/1.0"
+        return None
+
+
+class WSBinaryHandler(websocket.WebSocketHandler):
+    def __init__(self, application, request, **kwargs):
+        self.idxs = []
+        super(WSBinaryHandler, self).__init__(application, request, **kwargs)
+    
+    def open(self):
+        print "binary WebSocket opened"
+        self.create_geom()
+
+    def on_message(self, message):
+        print "binary ws got message: %s" % message
+
+    def on_close(self):
+        print "binary WebSocket closed"
+
+    def select_subprotocol(self, subprotocols):
+        print 'binary ws asked for subprotocols: %s' % subprotocols
+        if "pyv3d-binary/1.0" in subprotocols:
+            return "pyv3d-binary/1.0"
         return None
 
     def send_binary_data(self, wsi, buf, ibuf):
         print "In send_binary_data"
         print "length", len(buf)
         print "ibuf", ibuf
-        #wsi.check()
-        #wsi.write_to_file('cube.bin', buf)
         self.write_message(buf, binary=True)
 
         for idx in self.idxs:
@@ -90,8 +103,8 @@ class WShandler(websocket.WebSocketHandler):
 
     def create_geom(self):
 
-        myContext = gem.Context()
-        myModel = myContext.loadModel(sample_file)
+        self.myContext = gem.Context()
+        myModel = self.myContext.loadModel(sample_file)
         server, filename, modeler, uptodate, myBReps, nparam, \
             nbranch, nattr = myModel.getInfo()
 
@@ -99,8 +112,7 @@ class WShandler(websocket.WebSocketHandler):
 
         myDRep = myModel.newDRep()
 
-        myWV = WV_Wrapper()
-        self.myWV = myWV
+        self.myWV = myWV = WV_Wrapper()
 
         eye    = array([1.0, 0.0, 7.0], dtype=float32)
         center = array([0.0, 0.0, 0.0], dtype=float32)
@@ -113,11 +125,13 @@ class WShandler(websocket.WebSocketHandler):
             box, typ, nnode, nedge, nloop, nface, nshell, nattr = brep.getInfo()
             print nface, "faces"
 
+            name = "brep_%d" % (i+1)
+
             # Tesselate the brep
             # brep, maxang, maxlen, maxasg
             myDRep.tesselate(i+1, 0, 0, 0)
 
-            self.idxs.extend(myWV.load_DRep(myDRep, i+1, nface, name="MyBox"))
+            self.idxs.extend(myWV.load_DRep(myDRep, i+1, nface, name=name))
 
         myWV.prepare_for_sends()
 
@@ -138,7 +152,8 @@ def main():
 
 
     handlers = [
-        web.url(r'/', WShandler, { 'subprotos': ["gprim-binary-protocols", "ui-text-protocol"]}),
+        web.url(r'/', WSTextHandler),
+        web.url(r'/binary', WSBinaryHandler),
     ]
 
     app_settings = {

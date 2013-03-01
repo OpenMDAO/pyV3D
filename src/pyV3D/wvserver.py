@@ -34,7 +34,10 @@ def get_argument_parser():
                         help='port to run server on')
     return parser
 
-
+class BaseWSHandler(websocket.WebSocketHandler):
+    def _handle_request_exception(self, exc):
+        print "Unhandled exception:",str(exc)
+        super(BaseWSHandler, self)._handle_request_exception(exc)
 
 # Determining size of buf for websockets:
 #    define MAX_MUX_RECURSION 2
@@ -45,90 +48,126 @@ def get_argument_parser():
 #
 # so -> 4 + 10 + 2*2 + 128 + 1 = 147
 
-
-class WShandler(websocket.WebSocketHandler):
+class WSTextHandler(BaseWSHandler):
     def __init__(self, application, request, **kwargs):
-        self.idxs = []
-        self._subprotos = set(kwargs.get('subprotos', []))
-        if 'subprotos' in kwargs:
-            del kwargs['subprotos']
-        super(WShandler, self).__init__(application, request, **kwargs)
+        super(WSTextHandler, self).__init__(application, request, **kwargs)
     
     def open(self):
-        print "WebSocket opened"
-        self.create_geom()
+        print "text WebSocket opened"
 
     def on_message(self, message):
-        print "got message: %s" % message
-        self.write_message(u"You said: " + message)
+        print "text WS: got message: %s" % message
+        #self.write_message(u"You said: " + message)
 
     def on_close(self):
-        print "WebSocket closed"
+        print "text WebSocket closed"
 
-    def select_subprotocol(self, subprotocols):
-        print 'asked for subprotocols: %s' % subprotocols
-        for proto in subprotocols:
-            if proto in self._subprotos:
-                return proto
-        return None
+    # def select_subprotocol(self, subprotocols):
+    #     print 'asked for subprotocols: %s' % subprotocols
+    #     if "pyv3d-text/1.0" in subprotocols:
+    #         return "pyv3d-text/1.0"
+    #     return None
+
+
+class WSBinaryHandler(BaseWSHandler):
+    def __init__(self, application, request, **kwargs):
+        self.idxs = []
+        super(WSBinaryHandler, self).__init__(application, request, **kwargs)
+    
+    def open(self):
+        print "binary WebSocket opened"
+        try:
+            self.create_geom()
+        except Exception as err:
+            print 'Exception:',str(err)
+
+    def on_message(self, message):
+        print "binary ws got message: %s" % message
+
+    def on_close(self):
+        print "binary WebSocket closed"
+
+    # def select_subprotocol(self, subprotocols):
+    #     print 'binary ws asked for subprotocols: %s' % subprotocols
+    #     if "pyv3d-binary/1.0" in subprotocols:
+    #         return "pyv3d-binary/1.0"
+    #     return None
 
     def send_binary_data(self, wsi, buf, ibuf):
-        print "In send_binary_data"
-        print "length", len(buf)
-        print "ibuf", ibuf
-        #wsi.check()
-        #wsi.write_to_file('cube.bin', buf)
-        self.write_message(buf, binary=True)
+        try:
+            print "In send_binary_data"
+            print "length", len(buf)
+            print "ibuf", ibuf
+            print "buf type=", str(type(buf))
+            self.write_message(buf, binary=True)
 
-        for idx in self.idxs:
-            print "removing GPrim %s" % idx
-            self.myWV.remove_GPrim(idx)
+            for idx in self.idxs:
+                print "removing GPrim %s" % idx
+                self.myWV.remove_GPrim(idx)
 
-        self.idxs = []
+            self.idxs = []
+        except Exception as err:
+            print "Exception:",str(err)
+            return -1
         
         return 0
 
     def create_geom(self):
 
-        myContext = gem.Context()
-        myModel = myContext.loadModel(sample_file)
-        server, filename, modeler, uptodate, myBReps, nparam, \
-            nbranch, nattr = myModel.getInfo()
+        self.my_param_geom = GEMParametricGeometry()
+        self.my_param_geom.model_file = sample_file
 
-        print 'len(myBReps) = ', len(myBReps)
+        #self.myContext = gem.Context()
+        #myModel = self.myContext.loadModel(sample_file)
+        # server, filename, modeler, uptodate, myBReps, nparam, \
+        #     nbranch, nattr = myModel.getInfo()
 
-        myDRep = myModel.newDRep()
+        # print 'len(myBReps) = ', len(myBReps)
 
-        myWV = WV_Wrapper()
-        self.myWV = myWV
+        # myDRep = myModel.newDRep()
 
-        eye    = array([1.0, 0.0, 7.0], dtype=float32)
+        self.myWV = myWV = WV_Wrapper()
+
+        eye    = array([0.0, 0.0, 7.0], dtype=float32)
         center = array([0.0, 0.0, 0.0], dtype=float32)
         up     = array([0.0, 1.0, 0.0], dtype=float32)
 
         myWV.createContext(0, 30.0, 1.0, 10.0, eye, center, up)
 
-        for i,brep in enumerate(myBReps):
-            # How many faces?
-            box, typ, nnode, nedge, nloop, nface, nshell, nattr = brep.getInfo()
-            print nface, "faces"
+        # for i,brep in enumerate(myBReps):
+        #     # How many faces?
+        #     box, typ, nnode, nedge, nloop, nface, nshell, nattr = brep.getInfo()
+        #     print nface, "faces"
 
-            # Tesselate the brep
-            # brep, maxang, maxlen, maxasg
-            myDRep.tesselate(i+1, 0, 0, 0)
+        #     name = "brep_%d" % (i+1)
 
-            self.idxs.extend(myWV.load_DRep(myDRep, i+1, nface, name="MyBox"))
+        #     # Tesselate the brep
+        #     # brep, maxang, maxlen, maxasg
+        #     myDRep.tessellate(i+1, 0, 0, 0)
 
+        #     self.idxs.extend(myWV.load_DRep(myDRep, i+1, nface, name=name))
+
+        geom = self.my_param_geom.get_geometry()
+        if geom is None:
+            raise RuntimeError("can't get Geometry object")
+
+        WV_ON = 1
+        WV_SHADING = 4
+        WV_ORIENTATION = 8
+        myWV.createBox("Box$1", WV_ON|WV_SHADING|WV_ORIENTATION, [0.,0.,0.])
+        #indices = myWV.load_geometry(geom)
+
+        print 'prep for send'
         myWV.prepare_for_sends()
 
         buf = (3205696+19)*' '
-        myWV.send_GPrim(self, buf, -1, self.send_binary_data)
+        print 'sendGPrim'
+        myWV.send_GPrim(self, buf, 1, self.send_binary_data)  # send init packet
+        myWV.send_GPrim(self, buf, -1, self.send_binary_data)  # send initial suite of GPrims
 
+        print 'finish sends'
         myWV.finish_sends()
 
-# class MainHandler(RequestHandler):
-#     def get(self):
-#         self.render('index.html')
 
 def main():
     ''' Process command line arguments and run.
@@ -138,7 +177,8 @@ def main():
 
 
     handlers = [
-        web.url(r'/', WShandler, { 'subprotos': ["gprim-binary-protocols", "ui-text-protocol"]}),
+        web.url(r'/', WSTextHandler),
+        web.url(r'/binary', WSBinaryHandler),
     ]
 
     app_settings = {

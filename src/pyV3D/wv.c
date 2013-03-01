@@ -2706,3 +2706,91 @@ wv_finishSends(wvContext *cntxt)
 }
 
 
+void wv_createBox(wvContext *cntxt, char *name, int attr, float *offset)
+{
+    int    i, n, attrs;
+    wvData items[5];
+
+    // box
+    //    v6----- v5
+    //   /|      /|
+    //  v1------v0|
+    //  | |     | |
+    //  | |v7---|-|v4
+    //  |/      |/
+    //  v2------v3
+    //
+    // vertex coords array
+    float vertices[] = {
+           1, 1, 1,  -1, 1, 1,  -1,-1, 1,   1,-1, 1,    // v0-v1-v2-v3 front
+           1, 1, 1,   1,-1, 1,   1,-1,-1,   1, 1,-1,    // v0-v3-v4-v5 right
+           1, 1, 1,   1, 1,-1,  -1, 1,-1,  -1, 1, 1,    // v0-v5-v6-v1 top
+          -1, 1, 1,  -1, 1,-1,  -1,-1,-1,  -1,-1, 1,    // v1-v6-v7-v2 left
+          -1,-1,-1,   1,-1,-1,   1,-1, 1,  -1,-1, 1,    // v7-v4-v3-v2 bottom
+           1,-1,-1,  -1,-1,-1,  -1, 1,-1,   1, 1,-1 };  // v4-v7-v6-v5 back
+
+    // normal array
+    float normals[] = {
+           0, 0, 1,   0, 0, 1,   0, 0, 1,   0, 0, 1,     // v0-v1-v2-v3 front
+           1, 0, 0,   1, 0, 0,   1, 0, 0,   1, 0, 0,     // v0-v3-v4-v5 right
+           0, 1, 0,   0, 1, 0,   0, 1, 0,   0, 1, 0,     // v0-v5-v6-v1 top
+          -1, 0, 0,  -1, 0, 0,  -1, 0, 0,  -1, 0, 0,     // v1-v6-v7-v2 left
+           0,-1, 0,   0,-1, 0,   0,-1, 0,   0,-1, 0,     // v7-v4-v3-v2 bottom
+           0, 0,-1,   0, 0,-1,   0, 0,-1,   0, 0,-1 };   // v4-v7-v6-v5 back
+
+    // color array
+    unsigned char colors[] = {
+           0, 0, 255,    0, 0, 255,    0, 0, 255,    0, 0, 255,    // v0-v1-v2-v3
+           255, 0, 0,    255, 0, 0,    255, 0, 0,    255, 0, 0,    // v0-v3-v4-v5
+           0, 255, 0,    0, 255, 0,    0, 255, 0,    0, 255, 0,    // v0-v5-v6-v1
+           255, 255, 0,  255, 255, 0,  255, 255, 0,  255, 255, 0,  // v1-v6-v7-v2
+           255, 0, 255,  255, 0, 255,  255, 0, 255,  255, 0, 255,  // v7-v4-v3-v2
+           0, 255, 255,  0, 255, 255,  0, 255, 255,  0, 255, 255}; // v4-v7-v6-v5
+
+    // index array
+    int indices[] = {
+           0, 1, 2,   0, 2, 3,    // front
+           4, 5, 6,   4, 6, 7,    // right
+           8, 9,10,   8,10,11,    // top
+          12,13,14,  12,14,15,    // left
+          16,17,18,  16,18,19,    // bottom
+          20,21,22,  20,22,23 };  // back
+          
+    // other index array
+    int oIndices[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,
+                       16,17,18,19,20,21,22,23 };
+      
+    for (i = 0; i < 72; i+=3) {
+      vertices[i  ] += offset[0];
+      vertices[i+1] += offset[1];
+      vertices[i+2] += offset[2];
+    }
+
+    if ((i=wv_setData(WV_REAL32, 24, vertices, WV_VERTICES, &items[0])) < 0)
+      printf(" wv_setData = %d for %s/item 0!\n", i, name);
+    if ((i=wv_setData(WV_INT32,  36, indices, WV_INDICES,   &items[1])) < 0)
+      printf(" wv_setData = %d for %s/item 1!\n", i, name);
+    if ((i=wv_setData(WV_UINT8,  24, colors, WV_COLORS,     &items[2])) < 0)
+      printf(" wv_setData = %d for %s/item 2!\n", i, name);
+    if ((i=wv_setData(WV_REAL32, 24, normals, WV_NORMALS,   &items[3])) < 0)
+      printf(" wv_setData = %d for %s/item 3!\n", i, name);
+    n     = 4;
+    attrs = attr;
+    if (strcmp(name,"Box#1") == 0) {
+      if ((i=wv_setData(WV_INT32, 24, oIndices, WV_PINDICES, &items[4])) < 0)
+        printf(" wv_setData = %d for %s/item 4!\n", i, name);
+      n++;
+      attrs |= WV_POINTS;
+    }
+    if (strcmp(name,"Box#2") == 0) {
+      if ((i=wv_setData(WV_INT32, 24, oIndices, WV_LINDICES, &items[4])) < 0)
+        printf(" wv_setData = %d for %s/item 4!\n", i, name);
+      n++;
+      attrs |= WV_LINES;
+    }
+
+    if ((i=wv_addGPrim(cntxt, name, WV_TRIANGLE, attrs, n, items)) < 0)
+      printf(" wv_addGPrim = %d for %s!\n", i, name);
+}
+
+

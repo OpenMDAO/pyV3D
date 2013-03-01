@@ -128,7 +128,7 @@ class WSBinaryHandler(BaseWSHandler):
 
         self.myWV = myWV = WV_Wrapper()
 
-        eye    = array([1.0, 0.0, 7.0], dtype=float32)
+        eye    = array([0.0, 0.0, 7.0], dtype=float32)
         center = array([0.0, 0.0, 0.0], dtype=float32)
         up     = array([0.0, 1.0, 0.0], dtype=float32)
 
@@ -151,7 +151,11 @@ class WSBinaryHandler(BaseWSHandler):
         if geom is None:
             raise RuntimeError("can't get Geometry object")
 
-        indices = myWV.load_geometry(geom)
+        WV_ON = 1
+        WV_SHADING = 4
+        WV_ORIENTATION = 8
+        myWV.createBox("Box$1", WV_ON|WV_SHADING|WV_ORIENTATION, [0.,0.,0.])
+        #indices = myWV.load_geometry(geom)
 
         print 'prep for send'
         myWV.prepare_for_sends()

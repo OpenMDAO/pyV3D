@@ -145,6 +145,10 @@ cdef extern from "wv.h":
     
     void wv_destroyContext(wvContext **context)
 
+    void wv_createBox(wvContext *cntxt, char *name, int attr, float *offset)
+    
+
+
 import sys
 
 def dbg(*args):
@@ -593,3 +597,11 @@ cdef class WV_Wrapper:
         '''The server needs to call this before sending GPrim info.'''
         
         wv_finishSends(self.context)
+
+
+    def createBox(self, char *name, int flag, offset):
+        cdef float coffset[3]
+        for i in range(3):
+            coffset[i] = offset[i]
+        wv_createBox(self.context, name, flag, coffset)
+

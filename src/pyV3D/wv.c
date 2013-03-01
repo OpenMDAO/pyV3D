@@ -13,6 +13,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#ifdef WIN32
+#include <Windows.h>
+#endif
 #include <unistd.h>
 
 #include "wv.h"
@@ -1797,12 +1800,15 @@ wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs,
   if ((gp->gtype == WV_TRIANGLE) && (gp->normals == NULL) &&
       (sqrtf(gp->normal[0]*gp->normal[0] + gp->normal[1]*gp->normal[1] +
              gp->normal[2]*gp->normal[2]) == 0.0)) {
+  fprintf(stderr, "computing norm\n");
+  fprintf(stderr, "gp->nVerts = %d\n", gp->nVerts);
     norm = (float *) wv_alloc(3*gp->nVerts*sizeof(float));
     if (norm == NULL) {
       wv_free(nam);
       return -1;
     }
     cnt = NULL;
+  fprintf(stderr, "gp->indices = %p\n", gp->indices);
     if (gp->indices != NULL) {
       cnt = (int *) wv_alloc(gp->nVerts*sizeof(int));
       if (cnt == NULL) {
@@ -1811,14 +1817,19 @@ wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs,
         return -1;
       }
     }
-    wv_computeNormals(cntxt->bias, gp->nVerts, gp->vertices, 
+  fprintf(stderr, "cntxt->bias = %d\n", cntxt->bias);
+  fprintf(stderr, "gp->nIndex = %d\n", gp->nIndex);
+  fprintf(stderr, "calling wv_computeNormals\n");
+  wv_computeNormals(cntxt->bias, gp->nVerts, gp->vertices, 
                       gp->nIndex, gp->indices, norm, cnt);
     if (cnt != NULL) wv_free(cnt);
     gp->normals = norm;
   }
   
   /* make the stripes */
+  fprintf(stderr, "calling wv_makeStripes\n");
   i = wv_makeStripes(gp, cntxt->bias);
+  fprintf(stderr, "wv_makeStripes done\n");
   if (i != 0) {
     if (norm != NULL) wv_free(gp->normals);
     wv_free(nam);
@@ -1834,7 +1845,9 @@ wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs,
     items[i].dataPtr  = NULL;
   }
   
+  fprintf(stderr, "checking cntxt->ioAccess\n");
   while (cntxt->ioAccess != 0) usleep(10000);
+  fprintf(stderr, "cntxt->ioAccess done\n");
   cntxt->dataAccess = 1;
   cntxt->nGPrim += 1;
   cntxt->dataAccess = 0;

@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 
 from numpy import array, float32, float64, int32, uint8
 
@@ -79,7 +80,7 @@ class WSBinaryHandler(BaseWSHandler):
         try:
             self.create_geom()
         except Exception as err:
-            print 'Exception:',str(err)
+            print 'Exception:',traceback.format_exc()
 
     def on_message(self, message):
         print "binary ws got message: %s" % message
@@ -99,11 +100,14 @@ class WSBinaryHandler(BaseWSHandler):
             print "length", len(buf)
             print "ibuf", ibuf
             print "buf type=", str(type(buf))
+            with open("pyserver_buff.out", "wb") as f:
+                for i in range(ibuf):
+                    f.write(buf[i])
             self.write_message(buf, binary=True)
 
-            for idx in self.idxs:
-                print "removing GPrim %s" % idx
-                self.myWV.remove_GPrim(idx)
+            # for idx in self.idxs:
+            #     print "removing GPrim %s" % idx
+            #     self.myWV.remove_GPrim(idx)
 
             self.idxs = []
         except Exception as err:
@@ -114,25 +118,29 @@ class WSBinaryHandler(BaseWSHandler):
 
     def create_geom(self):
 
-        self.my_param_geom = GEMParametricGeometry()
-        self.my_param_geom.model_file = sample_file
-
-        #self.myContext = gem.Context()
-        #myModel = self.myContext.loadModel(sample_file)
-        # server, filename, modeler, uptodate, myBReps, nparam, \
-        #     nbranch, nattr = myModel.getInfo()
-
-        # print 'len(myBReps) = ', len(myBReps)
-
-        # myDRep = myModel.newDRep()
-
         self.myWV = myWV = WV_Wrapper()
 
         eye    = array([0.0, 0.0, 7.0], dtype=float32)
         center = array([0.0, 0.0, 0.0], dtype=float32)
         up     = array([0.0, 1.0, 0.0], dtype=float32)
 
-        myWV.createContext(0, 30.0, 1.0, 10.0, eye, center, up)
+        myWV.createContext(0, 30.0, 1.0, 13.0, eye, center, up)
+
+        self.my_param_geom = GEMParametricGeometry()
+        self.my_param_geom.model_file = sample_file
+        geom = self.my_param_geom.get_geometry()
+        if geom is None:
+            raise RuntimeError("can't get Geometry object")
+        indices = myWV.load_geometry(geom)
+
+        # self.myContext = gem.Context()
+        # myModel = self.myContext.loadModel(sample_file)
+        # server, filename, modeler, uptodate, myBReps, nparam, \
+        #     nbranch, nattr = myModel.getInfo()
+
+        # print 'len(myBReps) = ', len(myBReps)
+
+        # myDRep = myModel.newDRep()
 
         # for i,brep in enumerate(myBReps):
         #     # How many faces?
@@ -147,15 +155,11 @@ class WSBinaryHandler(BaseWSHandler):
 
         #     self.idxs.extend(myWV.load_DRep(myDRep, i+1, nface, name=name))
 
-        geom = self.my_param_geom.get_geometry()
-        if geom is None:
-            raise RuntimeError("can't get Geometry object")
 
-        WV_ON = 1
-        WV_SHADING = 4
-        WV_ORIENTATION = 8
-        myWV.createBox("Box$1", WV_ON|WV_SHADING|WV_ORIENTATION, [0.,0.,0.])
-        #indices = myWV.load_geometry(geom)
+        # WV_ON = 1
+        # WV_SHADING = 4
+        # WV_ORIENTATION = 8
+        # myWV.createBox("Box$1", WV_ON|WV_SHADING|WV_ORIENTATION, [0.,0.,0.])
 
         print 'prep for send'
         myWV.prepare_for_sends()
@@ -172,6 +176,9 @@ class WSBinaryHandler(BaseWSHandler):
 def main():
     ''' Process command line arguments and run.
     '''
+    if os.path.isfile("pyserver_buff.out"):
+        os.remove("pyserver_buff.out")
+
     parser = get_argument_parser()
     options, args = parser.parse_known_args()
 

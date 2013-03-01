@@ -18,6 +18,7 @@
 #     http://www.cython.org/release/Cython-0.12/Cython/Includes/python.pxd
 
 cimport numpy as np
+import numpy as np
 
 # Attributes.
 WV_ON = 1
@@ -131,6 +132,10 @@ cdef extern from "wv.h":
     int wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs, 
                     int nItems, wvData *items)
                     
+    void wv_printGPrim(wvContext *cntxt, int index)
+
+    int wv_indexGPrim(wvContext *cntxt, char *name)
+
     ctypedef int (*cy_callback) (void *wsi, unsigned char *buf,
                                  int ibuf, void *f) 
 
@@ -250,7 +255,8 @@ cdef class WV_Wrapper:
             
         sub_index: int
             An index into the geometry object that designates a
-            submodel to be visualized.
+            submodel to be visualized. If not supplied, the whole model
+            will be visualized.
         '''
         
         data = geometry.return_visualization_data(sub_index)
@@ -279,8 +285,8 @@ cdef class WV_Wrapper:
             
             # Flatten here until I can figure out why they aren't
             # flattening in add_GPrim_*
-            triArray = triArray.flatten()
-            xyzArray = xyzArray.flatten()
+            triArray = triArray.astype(np.int32).flatten()
+            xyzArray = xyzArray.astype(np.float32).flatten()
             
             idx = self.add_GPrim_solid(name+"_face%d" % iface, xyzArray, triArray,
                                        shading=True, orientation=True)
@@ -415,6 +421,8 @@ cdef class WV_Wrapper:
         dbg("GPrim %s added." % self.context.gPrims.name)
         
         dbg("There are %d primitives in context" % self.context.nGPrim)
+
+        wv_printGPrim(self.context, wv_indexGPrim(self.context, cname))
 
         return ret
         

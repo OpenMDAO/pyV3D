@@ -476,6 +476,7 @@ wv_makeStripes(wvGPrim *gp, int bias)
   if (gp->gtype == WV_TRIANGLE) maxLen = 65535;
   if (gp->nVerts <= maxLen) {
 
+  fprintf(stderr, "**** MAKESTRIPES ****   bias = %d\n", bias);
     /* a single stripe */
     i2  = NULL;
     il2 = NULL;
@@ -483,7 +484,10 @@ wv_makeStripes(wvGPrim *gp, int bias)
     if (gp->indices != NULL) {
       i2 = (unsigned short *) wv_alloc(gp->nIndex*sizeof(unsigned short));
       if (i2 == NULL) return -1;
-      for (i = 0; i < gp->nIndex; i++) i2[i] = gp->indices[i] - bias;
+      for (i = 0; i < gp->nIndex; i++) {
+         fprintf(stderr, "%d\n", gp->indices[i]);
+         i2[i] = gp->indices[i] - bias;
+      }
     }
     if (gp->lIndices != NULL) {
       il2 = (unsigned short *) wv_alloc(gp->nlIndex*sizeof(unsigned short));

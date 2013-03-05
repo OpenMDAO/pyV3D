@@ -150,6 +150,11 @@ cdef extern from "wv.h":
     
     void wv_destroyContext(wvContext **context)
 
+    int wv_addArrowHeads(wvContext *cntxt, int index, float size, 
+                         int nHeads, int *heads)
+
+    void wv_adjustVerts(wvData *dstruct, float *focus)
+
     void wv_createBox(wvContext *cntxt, char *name, int attr, float *offset)
     
 
@@ -187,7 +192,47 @@ cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
         
     #return TYPE_DICT[dtype]
 
+cdef float* _get_focus(bbox):
+    cdef float focus[4]
     
+    size = bbox[3] - bbox[0]
+    if (size < bbox[4]-bbox[1]):
+        size = bbox[4] - bbox[1]
+    if (size < bbox[5]-bbox[2]):
+        size = bbox[5] - bbox[2]
+
+    focus[0] = 0.5*(bbox[0] + bbox[3])
+    focus[1] = 0.5*(bbox[1] + bbox[4])
+    focus[2] = 0.5*(bbox[2] + bbox[5])
+    focus[3] = size
+
+    return focus
+
+
+cdef int make_attr(visible=True,
+                   transparency=False,
+                   shading=False,
+                   orientation=False,
+                   points_visible=False,
+                   lines_visible=False):
+        # Assemble the attributes
+    cdef int attr=0
+
+    if visible:
+        attr = attr|WV_ON
+    if transparency:
+        attr = attr|WV_TRANSPARENT
+    if shading:
+        attr = attr|WV_SHADING
+    if orientation:
+        attr = attr|WV_ORIENTATION
+    if points_visible:
+        attr = attr|WV_POINTS
+    if lines_visible:
+        attr = attr|WV_LINES
+
+    return attr
+
 cdef class WV_Wrapper:
 
     cdef wvContext* context
@@ -240,12 +285,9 @@ cdef class WV_Wrapper:
         czNear = zNear
         czFar = zFar
             
-        dbg('creating context')
         self.context = wv_createContext(cbias, cfov, czNear, czFar, 
                                         &eye[0], &center[0], &up[0])
         
-        dbg("zFar=%s" % self.context.zFar)
-        dbg("eye[0]=%s" % self.context.eye[0])
         
     def load_geometry(self, geometry, sub_index=None, name='geometry'):
         '''Load a tesselation from a geometry model.
@@ -258,21 +300,21 @@ cdef class WV_Wrapper:
             submodel to be visualized. If not supplied, the whole model
             will be visualized.
         '''
+        geometry.get_visualization_data(self, sub_index)
+        # data = geometry.return_visualization_data(sub_index)
         
-        data = geometry.return_visualization_data(sub_index)
+        # indices = []
+        # for i, tesselation in enumerate(data):
         
-        indices = []
-        for i, tesselation in enumerate(data):
-        
-            idx = self.add_GPrim_solid(name+"_%d" % i, 
-                                       tesselation[0], tesselation[1],
-                                       shading=True, orientation=True)
-            if idx < 0:
-                raise RuntimeError("failed to add GPrim_solid %s" % name)
+        #     idx = self.add_GPrim_solid(name+"_%d" % i, 
+        #                                tesselation[0], tesselation[1],
+        #                                shading=True, orientation=True)
+        #     if idx < 0:
+        #         raise RuntimeError("failed to add GPrim_solid %s" % name)
                 
-            indices.append(idx)
+        #     indices.append(idx)
             
-        return indices        
+        # return indices        
         
     def load_DRep(self, drep, ibrep, nfaces, name=None):
         '''Load model ibrep from a GEM DRep
@@ -345,7 +387,7 @@ cdef class WV_Wrapper:
             Set to true to turn on display of edges
         '''
         
-        cdef int ndata, error_code, nitems, attr, ret
+        cdef int i, ndata, error_code, nitems, attr, ret
         cdef wvData items[5]
         cdef char *cname
         
@@ -391,20 +433,8 @@ cdef class WV_Wrapper:
                 return error_code
             nitems += 1
         
-        # Assemble the attributes
-        attr = 0
-        if visible:
-            attr = attr|WV_ON
-        if transparency:
-            attr = attr|WV_TRANSPARENT
-        if shading:
-            attr = attr|WV_SHADING
-        if orientation:
-            attr = attr|WV_ORIENTATION
-        if points_visible:
-            attr = attr|WV_POINTS
-        if lines_visible:
-            attr = attr|WV_LINES
+        attr = make_attr(visible, transparency, shading, orientation,
+                         points_visible, lines_visible)
 
         dbg("attr=",attr)
         
@@ -422,7 +452,7 @@ cdef class WV_Wrapper:
         
         dbg("There are %d primitives in context" % self.context.nGPrim)
 
-        wv_printGPrim(self.context, wv_indexGPrim(self.context, cname))
+        #wv_printGPrim(self.context, wv_indexGPrim(self.context, cname))
 
         return ret
         
@@ -612,4 +642,134 @@ cdef class WV_Wrapper:
         for i in range(3):
             coffset[i] = offset[i]
         wv_createBox(self.context, name, flag, coffset)
+
+
+    def set_face_data(self,  np.ndarray[np.float32_t, mode="c"] points not None,
+                             np.ndarray[int, mode="c"] tris not None,
+                             np.ndarray[np.float32_t, mode="c"] colors=None,
+                             np.ndarray[np.float32_t, mode="c"] normals=None,
+                             name='',
+                             bbox=None,
+                             visible=True,
+                             transparency=False,
+                             shading=False,
+                             orientation=False,
+                             points_visible=False,
+                             lines_visible=False):
+        cdef int attr
+        cdef float color[3], focus[4]
+        cdef char *gpname
+        cdef wvData items[5]
+        cdef np.ndarray[np.int32_t, ndim=1, mode="c"] segs
+
+        attr = make_attr(visible, transparency, shading, orientation,
+                         points_visible, lines_visible)
+
+        # vertices 
+        wv_setData(WV_REAL64, len(points), &points[0], WV_VERTICES, &items[0])
+        if bbox:
+            wv_adjustVerts(&items[0], _get_focus(bbox))
+
+        # triangles
+        ntris = len(tris)/3
+        wv_setData(WV_INT32, 3*ntris, &tris[0], WV_INDICES, &items[1])
+
+        # triangle colors
+        if colors is None:
+            color[0] = 1.0
+            color[1] = 0.0
+            color[2] = 0.0
+        else:
+            color[0] = colors[0]
+            color[1] = colors[1]
+            color[2] = colors[2]
+
+        wv_setData(WV_REAL32, 1, color, WV_COLORS, &items[2])
+
+        # triangle sides (segments)
+        segs = np.empty(6*ntris, dtype=np.int32, order='C')
+        nseg = 0
+        for itri in range(ntris):
+            for k in range(3):
+                segs[2*nseg] = tris[3*itri+(k+1)%3]
+                segs[2*nseg+1] = tris[3*itri+(k+2)%3]
+                nseg+=1
+
+        wv_setData(WV_INT32, 2*nseg, &segs[0], WV_LINDICES, &items[3])
+
+        # segment colors
+        color[0] = 0.0;
+        color[1] = 0.0;
+        color[2] = 0.0;
+        wv_setData(WV_REAL32, 1, color, WV_LCOLOR, &items[4])
+
+        # make graphic primitive 
+        gpname = name
+        igprim = wv_addGPrim(self.context, gpname, WV_TRIANGLE, attr, 5, items)
+        if igprim >= 0:
+            # make line width 1 
+            if self.context.gPrims != NULL:
+                self.context.gPrims[igprim].lWidth = 1.0
+
+
+    def set_edge_data(self,  np.ndarray[np.float32_t, mode="c"] points not None,
+                             np.ndarray[np.float32_t, mode="c"] colors=None,
+                             name='',
+                             bbox=None,
+                             visible=True,
+                             transparency=False,
+                             shading=False,
+                             orientation=False,
+                             points_visible=False,
+                             lines_visible=False):
+
+        cdef float color[3], focus[4]
+        cdef char *gpname
+        cdef int head, attr
+        cdef wvData items[5]
+        cdef np.ndarray[np.float32_t, ndim=1, mode="c"] xyzs
+
+        npts = len(points)/3
+        head = npts - 1
+
+        attr = make_attr(visible, transparency, shading, orientation,
+                         points_visible, lines_visible)
+
+        xyzs = np.empty(6*head, dtype=np.float32, order='C')
+
+        for nseg in range(head):
+            xyzs[6*nseg  ] = points[3*nseg  ]
+            xyzs[6*nseg+1] = points[3*nseg+1]
+            xyzs[6*nseg+2] = points[3*nseg+2]
+            xyzs[6*nseg+3] = points[3*nseg+3]
+            xyzs[6*nseg+4] = points[3*nseg+4]
+            xyzs[6*nseg+5] = points[3*nseg+5]
+        
+        # vertices 
+        wv_setData(WV_REAL32, 2*nseg, &xyzs[0], WV_VERTICES, &items[0])
+        if bbox:
+            wv_adjustVerts(&items[0], _get_focus(bbox))
+ 
+        # line colors
+        if colors is None:
+            color[0] = 0.0
+            color[1] = 0.0
+            color[2] = 1.0
+        else:
+            color[0] = colors[0]
+            color[1] = colors[1]
+            color[2] = colors[2]
+
+        wv_setData(WV_REAL32, 1, color, WV_COLORS, &items[1])
+
+        gpname = name
+
+        # make graphic primitive 
+        igprim = wv_addGPrim(self.context, gpname, WV_LINE, attr, 2, items)
+        if igprim >= 0:
+            # make line width 1.5 
+            if self.context.gPrims != NULL:
+                self.context.gPrims[igprim].lWidth = 1.5
+            if head != 0:
+                wv_addArrowHeads(self.context, igprim, 0.05, 1, &head)
 

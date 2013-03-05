@@ -123,8 +123,12 @@ class WSBinaryHandler(BaseWSHandler):
         eye    = array([0.0, 0.0, 7.0], dtype=float32)
         center = array([0.0, 0.0, 0.0], dtype=float32)
         up     = array([0.0, 1.0, 0.0], dtype=float32)
+        bias  = 1
+        fov   = 30.0
+        zNear = 1.0
+        zFar  = 10.0
 
-        myWV.createContext(0, 30.0, 1.0, 13.0, eye, center, up)
+        myWV.createContext(bias, fov, zNear, zFar, eye, center, up)
 
         self.my_param_geom = GEMParametricGeometry()
         self.my_param_geom.model_file = sample_file

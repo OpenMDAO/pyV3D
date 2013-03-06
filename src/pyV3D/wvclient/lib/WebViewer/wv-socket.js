@@ -55,10 +55,10 @@ function wsGpOnMessage(evt)
   var Uint8View = new Uint8Array(evt.data);
   logger(" Gprim-binary WebSocket getMessage: " + evt.type + 
       "  -- bytelength = " + evt.data.byteLength); 
-  logger("buffer=");
-  for(var i=0; i<evt.data.byteLength; i++) {
-    logger(Uint8View[i]);
-  }
+  //logger("buffer=");
+  //for(var i=0; i<evt.data.byteLength; i++) {
+    //logger(Uint8View[i]);
+  //}
   logger("                       end = " + Uint8View[evt.data.byteLength-1]);
  
 /*

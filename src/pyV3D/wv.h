@@ -145,7 +145,7 @@ wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs,
 
 typedef int (*cy_callback) (void *wsi, unsigned char *buf, int ibuf, void *f);
 
-void
+int
 wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag, 
              cy_callback wv_sendBinaryData, void *callback);
              

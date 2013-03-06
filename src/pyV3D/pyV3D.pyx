@@ -21,33 +21,33 @@ cimport numpy as np
 import numpy as np
 
 # Attributes.
-WV_ON = 1
-WV_TRANSPARENT = 2
-WV_SHADING = 4
-WV_ORIENTATION = 8
-WV_POINTS = 16
-WV_LINES = 32
+WV_ON          =  1
+WV_TRANSPARENT =  2
+WV_SHADING     =  4
+WV_ORIENTATION =  8
+WV_POINTS      = 16
+WV_LINES       = 32
 
 # VBOtypes.
-WV_VERTICES = 1
-WV_INDICES = 2
-WV_COLORS = 4
-WV_NORMALS = 8
-WV_PINDICES = 16
-WV_LINDICES = 32
-WV_PCOLOR = 999 # ?
-WV_LCOLOR = 888 # ?
-WV_BCOLOR = 777 # ?
+WV_VERTICES =   1
+WV_INDICES  =   2
+WV_COLORS   =   4
+WV_NORMALS  =   8
+WV_PINDICES =  16
+WV_LINDICES =  32
+WV_PCOLOR   =  64
+WV_LCOLOR   = 128
+WV_BCOLOR   = 256
 
 # GPTypes.
-WV_POINT = 0
-WV_LINE = 1
+WV_POINT    = 0
+WV_LINE     = 1
 WV_TRIANGLE = 2
 
 # Data types
-WV_UINT8 = 1
+WV_UINT8  = 1
 WV_UINT16 = 2
-WV_INT32 = 3
+WV_INT32  = 3
 WV_REAL32 = 4
 WV_REAL64 = 5
 
@@ -139,7 +139,7 @@ cdef extern from "wv.h":
     ctypedef int (*cy_callback) (void *wsi, unsigned char *buf,
                                  int ibuf, void *f) 
 
-    void wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
+    int wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
                       cy_callback callback1, void* callback2)
 
     void wv_removeGPrim(wvContext *cntxt, int index)
@@ -176,6 +176,7 @@ cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
     py_buf = buf[:ibuf]
         
     status = (<object>f)(<object>wsi, py_buf, ibuf)
+    dbg("in callback, retval is: ", status)
     return status     
     
     
@@ -232,6 +233,12 @@ cdef int make_attr(visible=True,
         attr = attr|WV_LINES
 
     return attr
+
+# raise an exception for return values < 0
+def _check(int ret, name='?', errclass=RuntimeError):
+    if ret < 0:
+        raise errclass("ERROR: return value of %d from function '%s'" % (ret, name))
+    return ret
 
 cdef class WV_Wrapper:
 
@@ -609,8 +616,8 @@ cdef class WV_Wrapper:
              callback function to send the packets
         '''
         cdef unsigned char* cbuf = buf
-        wv_sendGPrim(<void*>wsi, self.context, cbuf, flag, 
-                     callback, <void *>wv_SendBinaryData)
+        _check(wv_sendGPrim(<void*>wsi, self.context, cbuf, flag, 
+                     callback, <void *>wv_SendBinaryData), "wv_sendGPrim")
                      
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
@@ -662,17 +669,23 @@ cdef class WV_Wrapper:
         cdef wvData items[5]
         cdef np.ndarray[np.int32_t, ndim=1, mode="c"] segs
 
+        sys.stderr.write("set_face_data\n")
         attr = make_attr(visible, transparency, shading, orientation,
                          points_visible, lines_visible)
+        sys.stderr.write("attr=%d\n"%attr)
 
+        sys.stderr.write("setting vertices\n")
         # vertices 
-        wv_setData(WV_REAL64, len(points), &points[0], WV_VERTICES, &items[0])
+        _check(wv_setData(WV_REAL64, len(points), &points[0], WV_VERTICES, &items[0]),
+               "wv_setData")
         if bbox:
             wv_adjustVerts(&items[0], _get_focus(bbox))
 
         # triangles
         ntris = len(tris)/3
-        wv_setData(WV_INT32, 3*ntris, &tris[0], WV_INDICES, &items[1])
+        sys.stderr.write("setting tris\n")
+        _check(wv_setData(WV_INT32, 3*ntris, &tris[0], WV_INDICES, &items[1]),
+               "wv_setData")
 
         # triangle colors
         if colors is None:
@@ -684,7 +697,8 @@ cdef class WV_Wrapper:
             color[1] = colors[1]
             color[2] = colors[2]
 
-        wv_setData(WV_REAL32, 1, color, WV_COLORS, &items[2])
+        sys.stderr.write("setting colors1\n")
+        _check(wv_setData(WV_REAL32, 1, color, WV_COLORS, &items[2]), "wv_setData")
 
         # triangle sides (segments)
         segs = np.empty(6*ntris, dtype=np.int32, order='C')
@@ -695,21 +709,26 @@ cdef class WV_Wrapper:
                 segs[2*nseg+1] = tris[3*itri+(k+2)%3]
                 nseg+=1
 
-        wv_setData(WV_INT32, 2*nseg, &segs[0], WV_LINDICES, &items[3])
+        sys.stderr.write("setting segs\n")
+        _check(wv_setData(WV_INT32, 2*nseg, &segs[0], WV_LINDICES, &items[3]),
+            "wv_setData")
 
         # segment colors
         color[0] = 0.0;
         color[1] = 0.0;
         color[2] = 0.0;
-        wv_setData(WV_REAL32, 1, color, WV_LCOLOR, &items[4])
+
+        sys.stderr.write("setting colors2\n")
+        _check(wv_setData(WV_REAL32, 1, color, WV_LCOLOR, &items[4]), "wv_setData")
 
         # make graphic primitive 
         gpname = name
-        igprim = wv_addGPrim(self.context, gpname, WV_TRIANGLE, attr, 5, items)
-        if igprim >= 0:
-            # make line width 1 
-            if self.context.gPrims != NULL:
-                self.context.gPrims[igprim].lWidth = 1.0
+        sys.stderr.write("adding GPrim\n")
+        igprim = _check(wv_addGPrim(self.context, gpname, WV_TRIANGLE, attr, 5, items),
+            "wv_addGPrim")
+        # make line width 1 
+        if self.context.gPrims != NULL:
+            self.context.gPrims[igprim].lWidth = 1.0
 
 
     def set_edge_data(self,  np.ndarray[np.float32_t, mode="c"] points not None,
@@ -732,9 +751,11 @@ cdef class WV_Wrapper:
         npts = len(points)/3
         head = npts - 1
 
+        sys.stderr.write("in set_edge_data\n")
         attr = make_attr(visible, transparency, shading, orientation,
                          points_visible, lines_visible)
 
+        sys.stderr.write("attr=%d\n"%attr)
         xyzs = np.empty(6*head, dtype=np.float32, order='C')
 
         for nseg in range(head):
@@ -746,7 +767,9 @@ cdef class WV_Wrapper:
             xyzs[6*nseg+5] = points[3*nseg+5]
         
         # vertices 
-        wv_setData(WV_REAL32, 2*nseg, &xyzs[0], WV_VERTICES, &items[0])
+        sys.stderr.write("setting vertices\n")
+        _check(wv_setData(WV_REAL32, 2*nseg, &xyzs[0], WV_VERTICES, &items[0]),
+            "wv_setData")
         if bbox:
             wv_adjustVerts(&items[0], _get_focus(bbox))
  
@@ -760,16 +783,19 @@ cdef class WV_Wrapper:
             color[1] = colors[1]
             color[2] = colors[2]
 
-        wv_setData(WV_REAL32, 1, color, WV_COLORS, &items[1])
+        sys.stderr.write("setting colors\n")
+        _check(wv_setData(WV_REAL32, 1, color, WV_COLORS, &items[1]),
+            "wv_setData")
 
         gpname = name
 
         # make graphic primitive 
-        igprim = wv_addGPrim(self.context, gpname, WV_LINE, attr, 2, items)
-        if igprim >= 0:
-            # make line width 1.5 
-            if self.context.gPrims != NULL:
-                self.context.gPrims[igprim].lWidth = 1.5
-            if head != 0:
-                wv_addArrowHeads(self.context, igprim, 0.05, 1, &head)
+        sys.stderr.write("adding GPrim\n")
+        igprim = _check(wv_addGPrim(self.context, gpname, WV_LINE, attr, 2, items),
+            "wv_addGPrim")
+        # make line width 1.5 
+        if self.context.gPrims != NULL:
+            self.context.gPrims[igprim].lWidth = 1.5
+        if head != 0:
+            wv_addArrowHeads(self.context, igprim, 0.05, 1, &head)
 

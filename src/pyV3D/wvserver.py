@@ -18,12 +18,18 @@ sample_file = os.path.join(os.path.dirname(__file__), "test", "box1.csm")
 
 debug = True
 
+def ERROR(*args):
+    for arg in args:
+        sys.stderr.write(str(arg))
+        sys.stderr.write(" ")
+    sys.stderr.write('\n')
+
 if debug:
-    def DEBUG(msg):
-        print '<<<' + str(os.getpid()) + '>>> --', msg
+    DEBUG = ERROR
 else:
-    def DEBUG(msg):
+    def DEBUG(*args):
         pass
+
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -37,7 +43,7 @@ def get_argument_parser():
 
 class BaseWSHandler(websocket.WebSocketHandler):
     def _handle_request_exception(self, exc):
-        print "Unhandled exception:",str(exc)
+        ERROR("Unhandled exception: %s" % str(exc))
         super(BaseWSHandler, self)._handle_request_exception(exc)
 
 # Determining size of buf for websockets:
@@ -54,14 +60,14 @@ class WSTextHandler(BaseWSHandler):
         super(WSTextHandler, self).__init__(application, request, **kwargs)
     
     def open(self):
-        print "text WebSocket opened"
+        DEBUG("text WebSocket opened")
 
     def on_message(self, message):
-        print "text WS: got message: %s" % message
+        DEBUG("text WS: got message: %s" % message)
         #self.write_message(u"You said: " + message)
 
     def on_close(self):
-        print "text WebSocket closed"
+        DEBUG("text WebSocket closed")
 
     # def select_subprotocol(self, subprotocols):
     #     print 'asked for subprotocols: %s' % subprotocols
@@ -76,17 +82,17 @@ class WSBinaryHandler(BaseWSHandler):
         super(WSBinaryHandler, self).__init__(application, request, **kwargs)
     
     def open(self):
-        print "binary WebSocket opened"
+        DEBUG("binary WebSocket opened")
         try:
             self.create_geom()
         except Exception as err:
-            print 'Exception:',traceback.format_exc()
+            ERROR('Exception: %s' % traceback.format_exc())
 
     def on_message(self, message):
-        print "binary ws got message: %s" % message
+        DEBUG("binary ws got message: %s" % message)
 
     def on_close(self):
-        print "binary WebSocket closed"
+        DEBUG("binary WebSocket closed")
 
     # def select_subprotocol(self, subprotocols):
     #     print 'binary ws asked for subprotocols: %s' % subprotocols
@@ -96,10 +102,10 @@ class WSBinaryHandler(BaseWSHandler):
 
     def send_binary_data(self, wsi, buf, ibuf):
         try:
-            print "In send_binary_data"
-            print "length", len(buf)
-            print "ibuf", ibuf
-            print "buf type=", str(type(buf))
+            DEBUG( "In send_binary_data")
+            DEBUG( "length", len(buf))
+            DEBUG( "ibuf", ibuf)
+            DEBUG( "buf type=", str(type(buf)))
             with open("pyserver_buff.out", "wb") as f:
                 for i in range(ibuf):
                     f.write(buf[i])
@@ -111,7 +117,7 @@ class WSBinaryHandler(BaseWSHandler):
 
             self.idxs = []
         except Exception as err:
-            print "Exception:",str(err)
+            ERROR("Exception in send_binary_data:", err)
             return -1
         
         return 0
@@ -165,15 +171,16 @@ class WSBinaryHandler(BaseWSHandler):
         # WV_ORIENTATION = 8
         # myWV.createBox("Box$1", WV_ON|WV_SHADING|WV_ORIENTATION, [0.,0.,0.])
 
-        print 'prep for send'
+        DEBUG('prep for send')
         myWV.prepare_for_sends()
 
         buf = (3205696+19)*' '
-        print 'sendGPrim'
+        DEBUG('sendGPrim')
         myWV.send_GPrim(self, buf, 1, self.send_binary_data)  # send init packet
+        DEBUG('init packet done')
         myWV.send_GPrim(self, buf, -1, self.send_binary_data)  # send initial suite of GPrims
 
-        print 'finish sends'
+        DEBUG('finish sends')
         myWV.finish_sends()
 
 

@@ -178,6 +178,8 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct)
   double         *ddata;
 
   fprintf(stderr, "wv_setData\n");
+   fprintf(stderr, "   type = %d\n", type);
+   fprintf(stderr, "   VBOtype = %d\n", VBOtype);
 
   dstruct->dataType = 0;
   dstruct->dataLen  = len;
@@ -186,9 +188,12 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct)
   dstruct->data[1]  = 0.0;
   dstruct->data[2]  = 0.0;
   if (len <= 0) {
-    fprintf(stderr, "returning -4\n");
+    fprintf(stderr, "   returning -4\n");
     return -4;
   }
+
+  fprintf(stderr, "   len = %d\n", len);
+
   /* single data entry */
   if ((len == 1) &&
       ((VBOtype == WV_COLORS) || (VBOtype == WV_NORMALS) ||
@@ -196,7 +201,7 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct)
        (VBOtype == WV_BCOLOR))) {
     switch (type) {
       case WV_UINT8:
-      fprintf(stderr, "WV_UINT8\n");
+      fprintf(stderr, "   WV_UINT8\n");
         cdata = (unsigned char *) data;
         if (VBOtype == WV_NORMALS) return -2;
         for (i = 0; i < 3; i++) {
@@ -205,25 +210,27 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct)
         }
         break;
       case WV_REAL32:
-      fprintf(stderr, "WV_REAL32\n");
+      fprintf(stderr, "   WV_REAL32\n");
         fdata = (float *) data;
         dstruct->data[0] = fdata[0];
         dstruct->data[1] = fdata[1];
         dstruct->data[2] = fdata[2];
         break;
       case WV_REAL64:
-      fprintf(stderr, "WV_REAL64\n");
+      fprintf(stderr, "   WV_REAL64\n");
         ddata = (double *) data;
         dstruct->data[0] = ddata[0];
         dstruct->data[1] = ddata[1];
         dstruct->data[2] = ddata[2];
         break;
       default:
-        fprintf(stderr, "default\n");
+        fprintf(stderr, "   default\n");
         return -3;
     }
 
     dstruct->dataType = VBOtype;
+    fprintf(stderr, "wv_setData returning\n");
+
     return 0;
   }
 
@@ -236,7 +243,7 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct)
   switch (VBOtype) {
     case WV_VERTICES:
     case WV_NORMALS:
-        fprintf(stderr, "WV_VERTICES or WV_NORMALS\n");
+        fprintf(stderr, "   WV_VERTICES or WV_NORMALS\n");
       fptr = (float *) wv_alloc(3*len*sizeof(float));
       if (fptr == NULL) return -1;
       dstruct->dataPtr = fptr;
@@ -244,19 +251,19 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct)
     case WV_INDICES:
     case WV_PINDICES:
     case WV_LINDICES:
-        fprintf(stderr, "WV_?INDICES\n");
+        fprintf(stderr, "   WV_?INDICES\n");
       iptr = (int *) wv_alloc(len*sizeof(int));
       if (iptr == NULL) return -1;
       dstruct->dataPtr = iptr;
       break;
     case WV_COLORS:
-        fprintf(stderr, "WV_COLORS\n");
+        fprintf(stderr, "   WV_COLORS\n");
       cptr = (unsigned char *) wv_alloc(3*len*sizeof(unsigned char));
       if (cptr == NULL) return -1;
       dstruct->dataPtr = cptr;
       break;
     default:
-        fprintf(stderr, "default: returning -2\n");
+        fprintf(stderr, "   default: returning -2\n");
       return -2;
   }
 
@@ -1612,8 +1619,10 @@ wv_addGPrim(wvContext *cntxt, char *name, int gtype, int attrs,
 
   if (cntxt->gPrims != NULL) {
     for (i = 0; i < cntxt->nGPrim; i++) {
-      fprintf(stderr, "checking gPrims[%d]\n", i);
-      if (strcmp(name, cntxt->gPrims[i].name) == 0) return -2;
+       if (strcmp(name, cntxt->gPrims[i].name) == 0) {
+        fprintf(stderr, "name %s is not unique in GPrims\n", name);
+        return -2;
+      }
     }
   }
 
@@ -2207,7 +2216,8 @@ wv_writeGPrim(wvGPrim *gp, void *wsi, unsigned char *buf, int *iBuf,
   int            i, j, n, npack, i4;
   unsigned char  vflag;
   unsigned char  *c1 = (unsigned char *)  &i4;  
-  
+      fprintf(stderr, "wv_writeGPrim\n");
+
   for (i = 0; i < gp->nStripe; i++) {
     npack = 12+gp->nameLen;
     vflag = WV_VERTICES;
@@ -2374,7 +2384,7 @@ wv_writeGPrim(wvGPrim *gp, void *wsi, unsigned char *buf, int *iBuf,
  * uses the call-back wv_sendBinaryData(wsi, buf, len) to send the packets
  *
  */
-void
+int
 wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag, 
              cy_callback wv_sendBinaryData, void *callback)
 {
@@ -2385,6 +2395,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
   
   /* init message */
   if (flag == 1) {
+    fprintf(stderr, "sending init GPRim\n");
     buf[0] = 0;
     buf[1] = 0;
     buf[2] = 0;
@@ -2400,11 +2411,14 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
     buf[53] = 0;
     buf[54] = 0;
     buf[55] = 7;                        /* eof opcode */
-    if (wv_sendBinaryData(wsi, buf, 56, callback) < 0)
+    if (wv_sendBinaryData(wsi, buf, 56, callback) < 0) {
       fprintf(stderr, "ERROR sending Binary Data");
-    return;
+      return -1;
+    }
   }
-  if (cntxt->gPrims == NULL) return;
+    fprintf(stderr, "sendGPRim, flag=%d\n", flag);
+
+  if (cntxt->gPrims == NULL) return -1;
 
   /* any changes? */
   if ((flag == 0) && (cntxt->cleanAll == 0)) {
@@ -2412,7 +2426,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
       gp = &cntxt->gPrims[i];
       if (gp->updateFlg != 0) break;
     }
-    if (i == cntxt->nGPrim) return;
+    if (i == cntxt->nGPrim) return 0;
   }
   
   /* put out the new data*/
@@ -2434,6 +2448,8 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
   }
 
   for (i = 0; i < cntxt->nGPrim; i++) {
+        fprintf(stderr, "sending GPRim %d\n", i);
+
     gp = &cntxt->gPrims[i];
     if ((gp->updateFlg == 0) && (flag != -1)) continue;  
     if ((gp->updateFlg == WV_DELETE) && (flag == -1)) continue;
@@ -2456,6 +2472,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
       gp->updateFlg |= WV_DONE;
 
     } else if ((gp->updateFlg == WV_PCOLOR) || (flag == -1)) {
+    fprintf(stderr, " new GPRim\n");
     
       /* new gPrim */
       npack = 8 + gp->nameLen + 16;
@@ -2668,9 +2685,11 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
   buf[iBuf+2] = 0;
   buf[iBuf+3] = 7;                      /* eof opcode */
   iBuf       += 4;
-  if (wv_sendBinaryData(wsi, buf, iBuf, callback) < 0)
+  if (wv_sendBinaryData(wsi, buf, iBuf, callback) < 0) {
     fprintf(stderr, "ERROR Sending Binary Data");
-
+     return -1;
+  }
+  return 0;
 }
 
 /* 

@@ -57,13 +57,15 @@ indices = [
    20,21,22, 20,22,23 ] # back
 
 
-vertices = array(vertices, dtype=float64)
+vertices = array(vertices, dtype=float32)
 indices = array(indices, dtype=int32)
 colors = array(colors, dtype=uint8)
-normals = array(normals, dtype=float64)
+normals = array(normals, dtype=float32)
 
 myWV.add_GPrim_solid("MyBox", vertices, indices, colors, normals,
                      shading=True, orientation=True)
+#myWV.add_GPrim_solid("MyBox", vertices, indices,
+#                     shading=True, orientation=True)
 
 # Determining size of buf for websockets:
 #    define MAX_MUX_RECURSION 2

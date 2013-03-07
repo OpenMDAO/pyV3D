@@ -176,23 +176,8 @@ cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
     py_buf = buf[:ibuf]
         
     status = (<object>f)(<object>wsi, py_buf, ibuf)
-    dbg("in callback, retval is: ", status)
     return status     
     
-    
-#def get_type(data):
-    #''' Figure out if our array is an acceptable type, and return
-    #the type string.'''
-    
-    #dtype = str(data.dtype)
-    
-    #if dtype not in TYPE_DICT.keys():
-        #msg = "Array dtype '%n'" % dtype + \
-              #" is not supported by pyV3D."
-        #raise RuntimeError(msg)
-        
-    #return TYPE_DICT[dtype]
-
 cdef float* _get_focus(bbox):
     cdef float focus[4]
     
@@ -296,7 +281,8 @@ cdef class WV_Wrapper:
                                         &eye[0], &center[0], &up[0])
         
         
-    def load_geometry(self, geometry, sub_index=None, name='geometry'):
+    def load_geometry(self, geometry, sub_index=None, name='geometry',
+                      angle=0., relSide=0., relSag=0.):
         '''Load a tesselation from a geometry model.
         
         geometry: GEMGeometry
@@ -307,7 +293,8 @@ cdef class WV_Wrapper:
             submodel to be visualized. If not supplied, the whole model
             will be visualized.
         '''
-        geometry.get_visualization_data(self, sub_index)
+        geometry.get_visualization_data(self, sub_index,
+              angle=angle, relSide=relSide, relSag=relSag)
         # data = geometry.return_visualization_data(sub_index)
         
         # indices = []
@@ -660,30 +647,36 @@ cdef class WV_Wrapper:
                              visible=True,
                              transparency=False,
                              shading=False,
-                             orientation=False,
+                             orientation=True,
                              points_visible=False,
-                             lines_visible=False):
+                             lines_visible=False,
+
+                             fp=None):
         cdef int attr
         cdef float color[3], focus[4]
         cdef char *gpname
         cdef wvData items[5]
         cdef np.ndarray[np.int32_t, ndim=1, mode="c"] segs
 
-        sys.stderr.write("set_face_data\n")
         attr = make_attr(visible, transparency, shading, orientation,
                          points_visible, lines_visible)
-        sys.stderr.write("attr=%d\n"%attr)
 
-        sys.stderr.write("setting vertices\n")
+        ntris = len(tris)/3
+        fp.write("npts, ntris = %d, %d\n" % (len(points)/3, ntris))
         # vertices 
-        _check(wv_setData(WV_REAL64, len(points), &points[0], WV_VERTICES, &items[0]),
+        fp.write("vertices:\n")
+        for jj in range (len(points)/3):
+            fp.write("%f, %f, %f\n" % (points[jj*3],points[1+jj*3],points[2+jj*3]))
+
+        _check(wv_setData(WV_REAL64, len(points)/3, &points[0], WV_VERTICES, &items[0]),
                "wv_setData")
         if bbox:
             wv_adjustVerts(&items[0], _get_focus(bbox))
 
         # triangles
-        ntris = len(tris)/3
-        sys.stderr.write("setting tris\n")
+        fp.write("triangles:\n")
+        for jj in range(ntris):
+            fp.write("%d, %d, %d\n" % (tris[jj*3],tris[1+jj*3],tris[2+jj*3]))
         _check(wv_setData(WV_INT32, 3*ntris, &tris[0], WV_INDICES, &items[1]),
                "wv_setData")
 
@@ -697,7 +690,7 @@ cdef class WV_Wrapper:
             color[1] = colors[1]
             color[2] = colors[2]
 
-        sys.stderr.write("setting colors1\n")
+        fp.write("colors: %f, %f, %f\n" % (color[0],color[1],color[2]))
         _check(wv_setData(WV_REAL32, 1, color, WV_COLORS, &items[2]), "wv_setData")
 
         # triangle sides (segments)
@@ -709,7 +702,9 @@ cdef class WV_Wrapper:
                 segs[2*nseg+1] = tris[3*itri+(k+2)%3]
                 nseg+=1
 
-        sys.stderr.write("setting segs\n")
+        fp.write("nseg=%d\nsegs:\n" % nseg)
+        for jj in range(2*nseg):
+            fp.write("%d\n" % segs[jj])
         _check(wv_setData(WV_INT32, 2*nseg, &segs[0], WV_LINDICES, &items[3]),
             "wv_setData")
 
@@ -718,12 +713,12 @@ cdef class WV_Wrapper:
         color[1] = 0.0;
         color[2] = 0.0;
 
-        sys.stderr.write("setting colors2\n")
+        fp.write("seg colors: %f, %f, %f\n" % (color[0],color[1],color[2]))
         _check(wv_setData(WV_REAL32, 1, color, WV_LCOLOR, &items[4]), "wv_setData")
 
         # make graphic primitive 
         gpname = name
-        sys.stderr.write("adding GPrim\n")
+        fp.write("adding GPRim, attr=%d, nitems=%d\n"% (attr, 5))
         igprim = _check(wv_addGPrim(self.context, gpname, WV_TRIANGLE, attr, 5, items),
             "wv_addGPrim")
         # make line width 1 
@@ -740,7 +735,9 @@ cdef class WV_Wrapper:
                              shading=False,
                              orientation=False,
                              points_visible=False,
-                             lines_visible=False):
+                             lines_visible=False,
+
+                             fp=None):
 
         cdef float color[3], focus[4]
         cdef char *gpname
@@ -751,13 +748,12 @@ cdef class WV_Wrapper:
         npts = len(points)/3
         head = npts - 1
 
-        sys.stderr.write("in set_edge_data\n")
         attr = make_attr(visible, transparency, shading, orientation,
                          points_visible, lines_visible)
 
-        sys.stderr.write("attr=%d\n"%attr)
         xyzs = np.empty(6*head, dtype=np.float32, order='C')
 
+        fp.write("npts=%d\nedge points:\n" % npts)
         for nseg in range(head):
             xyzs[6*nseg  ] = points[3*nseg  ]
             xyzs[6*nseg+1] = points[3*nseg+1]
@@ -765,10 +761,17 @@ cdef class WV_Wrapper:
             xyzs[6*nseg+3] = points[3*nseg+3]
             xyzs[6*nseg+4] = points[3*nseg+4]
             xyzs[6*nseg+5] = points[3*nseg+5]
-        
+            fp.write("%f, %f, %f, %f, %f, %f\n" %(
+                xyzs[6*nseg  ],
+                xyzs[6*nseg+1],
+                xyzs[6*nseg+2],
+                xyzs[6*nseg+3],
+                xyzs[6*nseg+4],
+                xyzs[6*nseg+5]
+                ))
+
         # vertices 
-        sys.stderr.write("setting vertices\n")
-        _check(wv_setData(WV_REAL32, 2*nseg, &xyzs[0], WV_VERTICES, &items[0]),
+        _check(wv_setData(WV_REAL32, 2*head, &xyzs[0], WV_VERTICES, &items[0]),
             "wv_setData")
         if bbox:
             wv_adjustVerts(&items[0], _get_focus(bbox))
@@ -783,14 +786,14 @@ cdef class WV_Wrapper:
             color[1] = colors[1]
             color[2] = colors[2]
 
-        sys.stderr.write("setting colors\n")
+        fp.write("edge colors: %f, %f, %f\n" % (color[0],color[1],color[2]))
         _check(wv_setData(WV_REAL32, 1, color, WV_COLORS, &items[1]),
             "wv_setData")
 
         gpname = name
 
         # make graphic primitive 
-        sys.stderr.write("adding GPrim\n")
+        fp.write("adding GPRim, attr=%d, nitems=%d\n" %(attr, 2))
         igprim = _check(wv_addGPrim(self.context, gpname, WV_LINE, attr, 2, items),
             "wv_addGPrim")
         # make line width 1.5 

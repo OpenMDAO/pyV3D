@@ -2370,8 +2370,7 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
       return -1;
     }
   }
-    fprintf(stderr, "sendGPRim, flag=%d\n", flag);
-
+ 
   if (cntxt->gPrims == NULL) return -1;
 
   /* any changes? */

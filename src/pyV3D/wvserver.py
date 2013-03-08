@@ -9,14 +9,12 @@ from tornado.web import RequestHandler, StaticFileHandler
 
 from argparse import ArgumentParser
 
-from pygem_diamond import gem
-from pygem_diamond.pygem import GEMParametricGeometry
 from pyV3D.pyV3D import WV_Wrapper
 
 #sample_file = os.path.join(os.path.dirname(__file__), "test", "sample.csm")
-sample_file = os.path.join(os.path.dirname(__file__), "test", "box1.csm")
+#sample_file = os.path.join(os.path.dirname(__file__), "test", "box1.csm")
 
-debug = True
+options = None
 
 def ERROR(*args):
     for arg in args:
@@ -24,12 +22,8 @@ def ERROR(*args):
         sys.stderr.write(" ")
     sys.stderr.write('\n')
 
-if debug:
-    DEBUG = ERROR
-else:
-    def DEBUG(*args):
-        pass
-
+def DEBUG(*args):
+    pass
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -39,6 +33,10 @@ def get_argument_parser():
     parser = ArgumentParser(description='launch the test server')
     parser.add_argument('-p', '--port', type=int, dest='port', default=8000,
                         help='port to run server on')
+    parser.add_argument("-d","--debug", action="store_true", dest='debug',
+                        help="turn on debug mode")
+    parser.add_argument('geometry_file', nargs='?',
+                        help='pathname of geometry file to view')
     return parser
 
 class BaseWSHandler(websocket.WebSocketHandler):
@@ -46,19 +44,7 @@ class BaseWSHandler(websocket.WebSocketHandler):
         ERROR("Unhandled exception: %s" % str(exc))
         super(BaseWSHandler, self)._handle_request_exception(exc)
 
-# Determining size of buf for websockets:
-#    define MAX_MUX_RECURSION 2
-#    define LWS_SEND_BUFFER_PRE_PADDING (4 + 10 + (2 * MAX_MUX_RECURSION))
-#    define LWS_SEND_BUFFER_POST_PADDING 1
-#     unsigned char buf[LWS_SEND_BUFFER_PRE_PADDING + 128 +
-#                             LWS_SEND_BUFFER_POST_PADDING]
-#
-# so -> 4 + 10 + 2*2 + 128 + 1 = 147
-
 class WSTextHandler(BaseWSHandler):
-    def __init__(self, application, request, **kwargs):
-        super(WSTextHandler, self).__init__(application, request, **kwargs)
-    
     def open(self):
         DEBUG("text WebSocket opened")
 
@@ -77,10 +63,6 @@ class WSTextHandler(BaseWSHandler):
 
 
 class WSBinaryHandler(BaseWSHandler):
-    def __init__(self, application, request, **kwargs):
-        self.idxs = []
-        super(WSBinaryHandler, self).__init__(application, request, **kwargs)
-    
     def open(self):
         DEBUG("binary WebSocket opened")
         try:
@@ -111,51 +93,43 @@ class WSBinaryHandler(BaseWSHandler):
 
     def create_geom(self):
 
-        self.myWV = myWV = WV_Wrapper()
-
+        myWV = WV_Wrapper()
         eye    = array([0.0, 0.0, 7.0], dtype=float32)
         center = array([0.0, 0.0, 0.0], dtype=float32)
         up     = array([0.0, 1.0, 0.0], dtype=float32)
-        bias  = 1
         fov   = 30.0
         zNear = 1.0
         zFar  = 10.0
 
-        myWV.createContext(bias, fov, zNear, zFar, eye, center, up)
+        if options.geometry_file:
 
-        self.my_param_geom = GEMParametricGeometry()
-        self.my_param_geom.model_file = sample_file
-        geom = self.my_param_geom.get_geometry()
-        if geom is None:
-            raise RuntimeError("can't get Geometry object")
-        indices = myWV.load_geometry(geom, angle=15., relSide=.02, relSag=.001)
+            if options.geometry_file.endswith('.csm'):
+                try:
+                    from pygem_diamond import gem
+                    from pygem_diamond.pygem import GEMParametricGeometry
+                except ImportError:
+                    sys.stderr.write("\nviewing opencsm files requires the pygem_diamond package\n")
+                    sys.exit(-1)
 
-        # self.myContext = gem.Context()
-        # myModel = self.myContext.loadModel(sample_file)
-        # server, filename, modeler, uptodate, myBReps, nparam, \
-        #     nbranch, nattr = myModel.getInfo()
+                bias  = 1
+                myWV.createContext(bias, fov, zNear, zFar, eye, center, up)
 
-        # print 'len(myBReps) = ', len(myBReps)
-
-        # myDRep = myModel.newDRep()
-
-        # for i,brep in enumerate(myBReps):
-        #     # How many faces?
-        #     box, typ, nnode, nedge, nloop, nface, nshell, nattr = brep.getInfo()
-        #     print nface, "faces"
-
-        #     name = "brep_%d" % (i+1)
-
-        #     # Tesselate the brep
-        #     # brep, maxang, maxlen, maxasg
-        #     myDRep.tessellate(i+1, 0, 0, 0)
-
-        #     self.idxs.extend(myWV.load_DRep(myDRep, i+1, nface, name=name))
-
-        # WV_ON = 1
-        # WV_SHADING = 4
-        # WV_ORIENTATION = 8
-        # myWV.createBox("Box$1", WV_ON|WV_SHADING|WV_ORIENTATION, [0.,0.,0.])
+                self.my_param_geom = GEMParametricGeometry()
+                self.my_param_geom.model_file = os.path.expanduser(os.path.abspath(options.geometry_file))
+                geom = self.my_param_geom.get_geometry()
+                if geom is None:
+                    raise RuntimeError("can't get Geometry object")
+                myWV.load_geometry(geom, angle=15., relSide=.02, relSag=.001)
+            else:
+                sys.stderr.write("\nunrecognized geometry file extension\n")
+                sys.exit(-1)
+        else:
+            bias = 0
+            myWV.createContext(bias, fov, zNear, zFar, eye, center, up)
+            WV_ON = 1
+            WV_SHADING = 4
+            WV_ORIENTATION = 8
+            myWV.createBox("Box$1", WV_ON|WV_SHADING|WV_ORIENTATION, [0.,0.,0.])
 
         DEBUG('prep for send')
         myWV.prepare_for_sends()
@@ -174,9 +148,14 @@ class WSBinaryHandler(BaseWSHandler):
 def main():
     ''' Process command line arguments and run.
     '''
+    global DEBUG
+    global options
+
     parser = get_argument_parser()
     options, args = parser.parse_known_args()
 
+    if options.debug:
+        DEBUG = ERROR
 
     handlers = [
         web.url(r'/', WSTextHandler),
@@ -185,7 +164,6 @@ def main():
 
     app_settings = {
         'static_path':       APP_DIR,
-        #'template_path':     os.path.join(APP_DIR, 'partials'),
         'debug':             True,
     }
    
@@ -194,7 +172,7 @@ def main():
     http_server = httpserver.HTTPServer(app)
     http_server.listen(options.port)
 
-    DEBUG('Serving on port %d' % options.port)
+    print 'Serving on port %d' % options.port
     try:
         ioloop.IOLoop.instance().start()
     except KeyboardInterrupt:

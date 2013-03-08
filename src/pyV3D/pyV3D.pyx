@@ -236,9 +236,7 @@ cdef class WV_Wrapper:
     
     def __dealloc__(self):
         """Frees the memory for the wvContext object"""
-        
         wv_destroyContext(&self.context)
-        print "Context cleaned up."
         
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
@@ -658,9 +656,7 @@ cdef class WV_Wrapper:
                              shading=False,
                              orientation=True,
                              points_visible=False,
-                             lines_visible=False,
-
-                             fp=None):
+                             lines_visible=False):
         cdef int attr
         cdef float color[3], focus[4]
         cdef char *gpname
@@ -675,21 +671,13 @@ cdef class WV_Wrapper:
                          lines_visible=lines_visible)
 
         ntris = len(tris)/3
-        fp.write("npts, ntris = %d, %d\n" % (len(points)/3, ntris))
         # vertices 
-        fp.write("vertices:\n")
-        for jj in range (len(points)/3):
-            fp.write("%f, %f, %f\n" % (points[jj*3],points[1+jj*3],points[2+jj*3]))
-
         _check(wv_setData(WV_REAL32, len(points)/3, &points[0], WV_VERTICES, &items[0]),
                "wv_setData")
         if bbox:
             wv_adjustVerts(&items[0], _get_focus(bbox, focus))
 
         # triangles
-        fp.write("triangles:\n")
-        for jj in range(ntris):
-            fp.write("%d, %d, %d\n" % (tris[jj*3],tris[1+jj*3],tris[2+jj*3]))
         _check(wv_setData(WV_INT32, 3*ntris, &tris[0], WV_INDICES, &items[1]),
                "wv_setData")
 
@@ -703,7 +691,6 @@ cdef class WV_Wrapper:
             color[1] = colors[1]
             color[2] = colors[2]
 
-        fp.write("colors: %f, %f, %f\n" % (color[0],color[1],color[2]))
         _check(wv_setData(WV_REAL32, 1, color, WV_COLORS, &items[2]), "wv_setData")
 
         # triangle sides (segments)
@@ -715,9 +702,6 @@ cdef class WV_Wrapper:
                 segs[2*nseg+1] = tris[3*itri+(k+2)%3]
                 nseg+=1
 
-        fp.write("nseg=%d\nsegs:\n" % nseg)
-        for jj in range(2*nseg):
-            fp.write("%d\n" % segs[jj])
         _check(wv_setData(WV_INT32, 2*nseg, &segs[0], WV_LINDICES, &items[3]),
             "wv_setData")
 
@@ -726,12 +710,10 @@ cdef class WV_Wrapper:
         color[1] = 0.0;
         color[2] = 0.0;
 
-        fp.write("seg colors: %f, %f, %f\n" % (color[0],color[1],color[2]))
         _check(wv_setData(WV_REAL32, 1, color, WV_LCOLOR, &items[4]), "wv_setData")
 
         # make graphic primitive 
         gpname = name
-        fp.write("adding GPRim, attr=%d, nitems=%d\n"% (attr, 5))
         igprim = _check(wv_addGPrim(self.context, gpname, WV_TRIANGLE, attr, 5, items),
             "wv_addGPrim")
         # make line width 1 
@@ -748,9 +730,7 @@ cdef class WV_Wrapper:
                              shading=False,
                              orientation=False,
                              points_visible=False,
-                             lines_visible=False,
-
-                             fp=None):
+                             lines_visible=False):
 
         cdef float color[3], focus[4]
         cdef char *gpname
@@ -770,7 +750,6 @@ cdef class WV_Wrapper:
 
         xyzs = np.empty(6*head, dtype=np.float32, order='C')
 
-        fp.write("npts=%d\nedge points:\n" % npts)
         for nseg in range(head):
             xyzs[6*nseg  ] = points[3*nseg  ]
             xyzs[6*nseg+1] = points[3*nseg+1]
@@ -778,14 +757,6 @@ cdef class WV_Wrapper:
             xyzs[6*nseg+3] = points[3*nseg+3]
             xyzs[6*nseg+4] = points[3*nseg+4]
             xyzs[6*nseg+5] = points[3*nseg+5]
-            fp.write("%f, %f, %f, %f, %f, %f\n" %(
-                xyzs[6*nseg  ],
-                xyzs[6*nseg+1],
-                xyzs[6*nseg+2],
-                xyzs[6*nseg+3],
-                xyzs[6*nseg+4],
-                xyzs[6*nseg+5]
-                ))
 
         # vertices 
         _check(wv_setData(WV_REAL32, 2*head, &xyzs[0], WV_VERTICES, &items[0]),
@@ -803,14 +774,12 @@ cdef class WV_Wrapper:
             color[1] = colors[1]
             color[2] = colors[2]
 
-        fp.write("edge colors: %f, %f, %f\n" % (color[0],color[1],color[2]))
         _check(wv_setData(WV_REAL32, 1, color, WV_COLORS, &items[1]),
             "wv_setData")
 
         gpname = name
 
         # make graphic primitive 
-        fp.write("adding GPRim, attr=%d, nitems=%d\n" %(attr, 2))
         igprim = _check(wv_addGPrim(self.context, gpname, WV_LINE, attr, 2, items),
             "wv_addGPrim")
         # make line width 1.5 

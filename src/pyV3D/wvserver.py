@@ -102,20 +102,7 @@ class WSBinaryHandler(BaseWSHandler):
 
     def send_binary_data(self, wsi, buf, ibuf):
         try:
-            DEBUG( "In send_binary_data")
-            DEBUG( "length", len(buf))
-            DEBUG( "ibuf", ibuf)
-            DEBUG( "buf type=", str(type(buf)))
-            with open("pyserver_buff.out", "wb") as f:
-                for i in range(ibuf):
-                    f.write(buf[i])
             self.write_message(buf, binary=True)
-
-            # for idx in self.idxs:
-            #     print "removing GPrim %s" % idx
-            #     self.myWV.remove_GPrim(idx)
-
-            self.idxs = []
         except Exception as err:
             ERROR("Exception in send_binary_data:", err)
             return -1
@@ -165,7 +152,6 @@ class WSBinaryHandler(BaseWSHandler):
 
         #     self.idxs.extend(myWV.load_DRep(myDRep, i+1, nface, name=name))
 
-
         # WV_ON = 1
         # WV_SHADING = 4
         # WV_ORIENTATION = 8
@@ -174,7 +160,8 @@ class WSBinaryHandler(BaseWSHandler):
         DEBUG('prep for send')
         myWV.prepare_for_sends()
 
-        buf = (3205696+19)*' '
+        buf = myWV.get_bufflen()*'\0'
+        DEBUG('buff len = %d' % len(buf))
         DEBUG('sendGPrim')
         myWV.send_GPrim(self, buf, 1, self.send_binary_data)  # send init packet
         DEBUG('init packet done')
@@ -187,9 +174,6 @@ class WSBinaryHandler(BaseWSHandler):
 def main():
     ''' Process command line arguments and run.
     '''
-    if os.path.isfile("pyserver_buff.out"):
-        os.remove("pyserver_buff.out")
-
     parser = get_argument_parser()
     options, args = parser.parse_known_args()
 

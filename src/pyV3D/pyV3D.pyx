@@ -17,6 +17,8 @@
 # Passing Python objects in and out of the C code
 #     http://www.cython.org/release/Cython-0.12/Cython/Includes/python.pxd
 
+from libc.stdio cimport printf, fprintf, fopen, fclose, FILE
+
 cimport numpy as np
 import numpy as np
 
@@ -58,9 +60,10 @@ WV_REAL64 = 5
 #              'float32' : WV_REAL32,
 #              'float64' : WV_REAL64 }
 
-from libc.stdio cimport printf
 
 cdef extern from "wv.h":
+
+    int BUFLEN
 
     ctypedef struct wvStripe:
         int            nsVerts
@@ -158,8 +161,8 @@ cdef extern from "wv.h":
     void wv_createBox(wvContext *cntxt, char *name, int attr, float *offset)
     
 
-
 import sys
+
 
 def dbg(*args):
     for msg in args:
@@ -178,8 +181,7 @@ cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
     status = (<object>f)(<object>wsi, py_buf, ibuf)
     return status     
     
-cdef float* _get_focus(bbox):
-    cdef float focus[4]
+cdef float* _get_focus(bbox, float focus[4]):
     
     size = bbox[3] - bbox[0]
     if (size < bbox[4]-bbox[1]):
@@ -195,7 +197,7 @@ cdef float* _get_focus(bbox):
     return focus
 
 
-cdef int make_attr(visible=True,
+def make_attr(visible=False,
                    transparency=False,
                    shading=False,
                    orientation=False,
@@ -280,6 +282,9 @@ cdef class WV_Wrapper:
         self.context = wv_createContext(cbias, cfov, czNear, czFar, 
                                         &eye[0], &center[0], &up[0])
         
+        
+    def get_bufflen(self):
+        return BUFLEN
         
     def load_geometry(self, geometry, sub_index=None, name='geometry',
                       angle=0., relSide=0., relSag=0.):
@@ -427,8 +432,12 @@ cdef class WV_Wrapper:
                 return error_code
             nitems += 1
         
-        attr = make_attr(visible, transparency, shading, orientation,
-                         points_visible, lines_visible)
+        attr = make_attr(visible=visible, 
+                         transparency=transparency, 
+                         shading=shading, 
+                         orientation=orientation,
+                         points_visible=points_visible, 
+                         lines_visible=lines_visible)
 
         dbg("attr=",attr)
         
@@ -658,8 +667,12 @@ cdef class WV_Wrapper:
         cdef wvData items[5]
         cdef np.ndarray[np.int32_t, ndim=1, mode="c"] segs
 
-        attr = make_attr(visible, transparency, shading, orientation,
-                         points_visible, lines_visible)
+        attr = make_attr(visible=visible, 
+                         transparency=transparency, 
+                         shading=shading, 
+                         orientation=orientation,
+                         points_visible=points_visible, 
+                         lines_visible=lines_visible)
 
         ntris = len(tris)/3
         fp.write("npts, ntris = %d, %d\n" % (len(points)/3, ntris))
@@ -668,10 +681,10 @@ cdef class WV_Wrapper:
         for jj in range (len(points)/3):
             fp.write("%f, %f, %f\n" % (points[jj*3],points[1+jj*3],points[2+jj*3]))
 
-        _check(wv_setData(WV_REAL64, len(points)/3, &points[0], WV_VERTICES, &items[0]),
+        _check(wv_setData(WV_REAL32, len(points)/3, &points[0], WV_VERTICES, &items[0]),
                "wv_setData")
         if bbox:
-            wv_adjustVerts(&items[0], _get_focus(bbox))
+            wv_adjustVerts(&items[0], _get_focus(bbox, focus))
 
         # triangles
         fp.write("triangles:\n")
@@ -748,8 +761,12 @@ cdef class WV_Wrapper:
         npts = len(points)/3
         head = npts - 1
 
-        attr = make_attr(visible, transparency, shading, orientation,
-                         points_visible, lines_visible)
+        attr = make_attr(visible=visible, 
+                         transparency=transparency, 
+                         shading=shading, 
+                         orientation=orientation,
+                         points_visible=points_visible, 
+                         lines_visible=lines_visible)
 
         xyzs = np.empty(6*head, dtype=np.float32, order='C')
 
@@ -774,7 +791,7 @@ cdef class WV_Wrapper:
         _check(wv_setData(WV_REAL32, 2*head, &xyzs[0], WV_VERTICES, &items[0]),
             "wv_setData")
         if bbox:
-            wv_adjustVerts(&items[0], _get_focus(bbox))
+            wv_adjustVerts(&items[0], _get_focus(bbox, focus))
  
         # line colors
         if colors is None:

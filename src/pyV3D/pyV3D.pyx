@@ -19,6 +19,7 @@
 
 cimport numpy as np
 import numpy as np
+import os
 
 # Attributes.
 WV_ON          =  1
@@ -224,6 +225,87 @@ def _check(int ret, name='?', errclass=RuntimeError):
     if ret < 0:
         raise errclass("ERROR: return value of %d from function '%s'" % (ret, name))
     return ret
+    
+    
+class GeometryObject(object):
+    '''This is an object that follows the IStaticGeometry interface.
+    '''
+    
+    def __init__(self, filename):
+    
+        self.filename = filename
+        self.geom_name = os.path.basename(filename)[:-4]
+        
+    def get_visualization_data(self, wv, *args, **kwargs):
+        '''Load a tesselation from a geometry model.
+        
+        wv: WV_Wrapper instance
+            The pyV3D WV_Wrapper object
+        '''
+        
+        vertices = []
+        normals = []
+        nsolid = 0
+        dbg(' reading %r', self.filename)
+        
+        # Read in STL data and load it into wv.
+        with open(self.filename, 'rU') as stl:
+        
+            for line in stl:
+            
+                line = line.strip()
+                if not line:
+                    continue
+                fields = line.split()
+                
+                if fields[0] in ('solid', 'outer',
+                                 'endloop', 'endfacet'):
+                    continue
+                    
+                elif fields[0] == 'facet':
+                
+                    # Replicate normal for each vertex.
+                    normal = [float(xyz) for xyz in fields[2:]]
+                    normals.extend(normal)
+                    normals.extend(normal)
+                    normals.extend(normal)
+                    
+                elif fields[0] == 'vertex':
+                    vertices.extend([float(xyz) for xyz in fields[1:]])
+                
+                # Finish with this solid and prepare for next one.
+                elif fields[0] == 'endsolid':
+                
+                    ntri = len(vertices)/3
+                    
+                    # Determine bounding box.
+                    min_x = max_x = vertices[0]
+                    min_y = max_y = vertices[1]
+                    min_z = max_z = vertices[2]
+                    for i in range(ntri):
+                        min_x = min(min_x, vertices[i*3])
+                        max_x = max(max_x, vertices[i*3])
+                        min_y = min(min_y, vertices[i*3+1])
+                        max_y = max(max_y, vertices[i*3+1])
+                        min_z = min(min_y, vertices[i*3+2])
+                        max_z = max(max_y, vertices[i*3+2])
+                        
+                    box = [max_x, max_y, max_z, min_x, min_y, min_z]
+                        
+                    nsolid += 1
+                    wv.set_face_data(np.array(vertices, dtype=np.float32),
+                                     np.array(range(ntri), dtype=np.int32),
+                                     None,
+                                     np.array(normals, dtype=np.float32), 
+                                     bbox=box,
+                                     name="%s_solid%d"%(self.geom_name, nsolid))
+                                 
+                    normals = []
+                    vertices = []
+            
+                else:
+                    dbg(' ignoring %r', line)        
+                    
 
 cdef class WV_Wrapper:
 
@@ -279,8 +361,7 @@ cdef class WV_Wrapper:
             
         self.context = wv_createContext(cbias, cfov, czNear, czFar, 
                                         &eye[0], &center[0], &up[0])
-        
-        
+    
     def load_geometry(self, geometry, sub_index=None, name='geometry',
                       angle=0., relSide=0., relSag=0.):
         '''Load a tesselation from a geometry model.
@@ -309,6 +390,13 @@ cdef class WV_Wrapper:
         #     indices.append(idx)
             
         # return indices        
+        
+    def load_from_STL(self, filename):
+        '''Load a geomtry from an  STL file.
+        
+        filename: str
+            Name of STL file to load
+        '''
         
     def load_DRep(self, drep, ibrep, nfaces, name=None):
         '''Load model ibrep from a GEM DRep

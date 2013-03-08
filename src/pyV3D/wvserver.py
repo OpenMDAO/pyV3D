@@ -141,7 +141,7 @@ class WSBinaryHandler(BaseWSHandler):
         geom = self.my_param_geom.get_geometry()
         if geom is None:
             raise RuntimeError("can't get Geometry object")
-        indices = myWV.load_geometry(geom)
+        indices = myWV.load_geometry(geom, angle=15., relSide=.02, relSag=.001)
 
         # self.myContext = gem.Context()
         # myModel = self.myContext.loadModel(sample_file)

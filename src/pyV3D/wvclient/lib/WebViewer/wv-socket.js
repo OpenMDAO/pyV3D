@@ -78,12 +78,19 @@ function wsGpOnError(evt)
 
 //
 // Init Web Socket interface
-function getSockets(wsURLp)
+function getSockets(wsURLp, srv)
 {
   var ws_ctor = window['MozWebSocket'] ? window['MozWebSocket'] : window['WebSocket'];
+  var socketGp, socketUT;
 
-  var socketGp        = new ws_ctor(wsURLp+'/binary'); //, "pyv3d-binary/1.0");
-  //var socketGp        = new ws_ctor(wsURLp, "gprim-binary-protocol");
+  if (srv===1) {
+      socketGp = new ws_ctor(wsURLp+'/binary'); //, "pyv3d-binary/1.0");
+      socketUt = new ws_ctor(wsURLp); //, "pyv3d-text/1.0");
+  }
+  else {
+     socketGp = new ws_ctor(wsURLp, "gprim-binary-protocol");
+     socketUt = new ws_ctor(wsURLp, "ui-text-protocol");
+  }
   socketGp.binaryType = 'arraybuffer';
   socketGp.onopen     = function(evt) { wsGpOnOpen(evt)    };
   socketGp.onclose    = function(evt) { wsGpOnClose(evt)   };
@@ -91,8 +98,6 @@ function getSockets(wsURLp)
   socketGp.onerror    = function(evt) { wsGpOnError(evt)   };
   g.socketGp          = socketGp;
   
-  var socketUt       = new ws_ctor(wsURLp); //, "pyv3d-text/1.0");
-  //var socketUt       = new ws_ctor(wsURLp, "ui-text-protocol");
   socketUt.onopen    = function(evt) { wsUtOnOpen(evt)    };
   socketUt.onclose   = function(evt) { wsUtOnClose(evt)   };
   socketUt.onmessage = function(evt) { wsUtOnMessage(evt) };

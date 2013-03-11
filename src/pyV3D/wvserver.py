@@ -56,7 +56,6 @@ class WSTextHandler(BaseWSHandler):
 
 class WSBinaryHandler(BaseWSHandler):
     def initialize(self):
-        DEBUG("in base initialize")
         self.wv = WV_Wrapper()
         self.buf = self.wv.get_bufflen()*'\0'
 
@@ -64,7 +63,7 @@ class WSBinaryHandler(BaseWSHandler):
         DEBUG("binary WebSocket opened")
         try:
             self.create_geom()
-            self.send_geometry()
+            self.send_geometry(first=True)
         except Exception as err:
             ERROR('Exception: %s' % traceback.format_exc())
 
@@ -82,11 +81,12 @@ class WSBinaryHandler(BaseWSHandler):
             return -1
         return 0
 
-    def send_geometry(self):
+    def send_geometry(self, first=False):
         self.wv.prepare_for_sends()
 
-        self.wv.send_GPrim(self, self.buf, 1, self.send_binary_data)  # send init packet
-        self.wv.send_GPrim(self, self.buf, -1, self.send_binary_data)  # send initial suite of GPrims
+        if first:
+            self.wv.send_GPrim(self, self.buf, 1, self.send_binary_data)  # send init packet
+            self.wv.send_GPrim(self, self.buf, -1, self.send_binary_data)  # send initial suite of GPrims
 
         self.wv.finish_sends()
 
@@ -95,15 +95,6 @@ class SimpleWSTextHandler(WSTextHandler):
     pass
 
 class SimpleWSBinaryHandler(WSBinaryHandler):
-
-    def initialize(self, options):
-        try:
-            DEBUG("in binary initialize")
-            super(SimpleWSBinaryHandler, self).initialize()
-            self.geometry_file = options.geometry_file
-            DEBUG("leaving binary initialize")
-        except Exception as err:
-            ERROR('Exception: %s' % traceback.format_exc())
 
     def create_geom(self):
 
@@ -146,10 +137,8 @@ try:
     class GEMWSBinaryHandler(WSBinaryHandler):
         def initialize(self, options):
             try:
-                DEBUG("in gem binary initialize")
                 super(GEMWSBinaryHandler, self).initialize()
                 self.geometry_file = options.geometry_file
-                DEBUG("leaving binary initialize")
             except Exception as err:
                 ERROR('Exception: %s' % traceback.format_exc())
 
@@ -195,10 +184,8 @@ def main():
         print 'No geometry file given, serving simple cube...'
         binaryhandler = SimpleWSBinaryHandler
         texthandler = SimpleWSTextHandler
-        binargs = { 'options': options }
     elif options.geometry_file.lower().endswith('.csm'):
         if GEMWSBinaryHandler is None:
-            print "AAARG"
             raise RuntimeError("viewing opencsm files requires the pygem_diamond package")
         else:
             binaryhandler = GEMWSBinaryHandler
@@ -211,8 +198,10 @@ def main():
                            os.path.basename(options.geometry_file))
 
     handlers = [
-        web.url(r'/',       texthandler,   textargs),
-        web.url(r'/binary', binaryhandler, binargs),
+        web.url(r'/',                web.RedirectHandler, {'url': '/index.html', 'permanent': False}),    
+        web.url(r'/ws/text',         texthandler,   textargs),
+        web.url(r'/ws/binary',       binaryhandler, binargs),
+        web.url(r'/(.*)',            web.StaticFileHandler, {'path': os.path.join(APP_DIR,'wvclient')}),
     ]
 
     app_settings = {

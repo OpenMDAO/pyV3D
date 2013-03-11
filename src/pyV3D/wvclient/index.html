@@ -28,9 +28,10 @@
     g.zNear =  1.0;             // have some values for Zscreen
     g.zFar  = 11.0;
 
+    //var url = prompt("Enter hostname:port", "Localhost:8000");
     // initialize webSockets
-    var url = prompt("Enter hostname:port", "Localhost:8000");
-    getSockets("ws://"+url, 1);
+    //getSockets("ws://"+url, 1);
+    getSockets("ws://"+window.location.host, 1);
 
 </script>
 

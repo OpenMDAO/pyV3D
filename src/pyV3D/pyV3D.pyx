@@ -176,11 +176,12 @@ cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
     passes it a buffer of binary data and a pointer to the web server.
     '''
     cdef bytes py_buf
-    py_buf = buf[:ibuf]
+    py_buf = buf[:ibuf]  #TODO: see about getting rid of this copy 
         
     status = (<object>f)(<object>wsi, py_buf, ibuf)
     return status     
-    
+
+   
 cdef float* _get_focus(bbox, float focus[4]):
     
     size = bbox[3] - bbox[0]
@@ -284,307 +285,307 @@ cdef class WV_Wrapper:
     def get_bufflen(self):
         return BUFLEN
         
-    def load_geometry(self, geometry, sub_index=None, name='geometry',
-                      angle=0., relSide=0., relSag=0.):
-        '''Load a tesselation from a geometry model.
+    # def load_geometry(self, geometry, sub_index=None, name='geometry',
+    #                   angle=0., relSide=0., relSag=0.):
+    #     '''Load a tesselation from a geometry model.
         
-        geometry: GEMGeometry
-            A geometry object that adheres to the IGeometry interface
+    #     geometry: GEMGeometry
+    #         A geometry object that adheres to the IGeometry interface
             
-        sub_index: int
-            An index into the geometry object that designates a
-            submodel to be visualized. If not supplied, the whole model
-            will be visualized.
-        '''
-        geometry.get_visualization_data(self, sub_index,
-              angle=angle, relSide=relSide, relSag=relSag)
-        # data = geometry.return_visualization_data(sub_index)
+    #     sub_index: int
+    #         An index into the geometry object that designates a
+    #         submodel to be visualized. If not supplied, the whole model
+    #         will be visualized.
+    #     '''
+    #     geometry.get_visualization_data(self, sub_index,
+    #           angle=angle, relSide=relSide, relSag=relSag)
+    #     # data = geometry.return_visualization_data(sub_index)
         
-        # indices = []
-        # for i, tesselation in enumerate(data):
+    #     # indices = []
+    #     # for i, tesselation in enumerate(data):
         
-        #     idx = self.add_GPrim_solid(name+"_%d" % i, 
-        #                                tesselation[0], tesselation[1],
-        #                                shading=True, orientation=True)
-        #     if idx < 0:
-        #         raise RuntimeError("failed to add GPrim_solid %s" % name)
+    #     #     idx = self.add_GPrim_solid(name+"_%d" % i, 
+    #     #                                tesselation[0], tesselation[1],
+    #     #                                shading=True, orientation=True)
+    #     #     if idx < 0:
+    #     #         raise RuntimeError("failed to add GPrim_solid %s" % name)
                 
-        #     indices.append(idx)
+    #     #     indices.append(idx)
             
-        # return indices        
+    #     # return indices        
         
-    def load_DRep(self, drep, ibrep, nfaces, name=None):
-        '''Load model ibrep from a GEM DRep
+    # def load_DRep(self, drep, ibrep, nfaces, name=None):
+    #     '''Load model ibrep from a GEM DRep
         
-        TODO: This method is deprecated.'''
+    #     TODO: This method is deprecated.'''
         
-        indices = []
-        for iface in range(1, nfaces+1):
-            triArray, xyzArray = drep.getTessel(ibrep, iface)
+    #     indices = []
+    #     for iface in range(1, nfaces+1):
+    #         triArray, xyzArray = drep.getTessel(ibrep, iface)
             
-            # Flatten here until I can figure out why they aren't
-            # flattening in add_GPrim_*
-            triArray = triArray.astype(np.int32).flatten()
-            xyzArray = xyzArray.astype(np.float32).flatten()
+    #         # Flatten here until I can figure out why they aren't
+    #         # flattening in add_GPrim_*
+    #         triArray = triArray.astype(np.int32).flatten()
+    #         xyzArray = xyzArray.astype(np.float32).flatten()
             
-            idx = self.add_GPrim_solid(name+"_face%d" % iface, xyzArray, triArray,
-                                       shading=True, orientation=True)
-            if idx < 0:
-                raise RuntimeError("failed to add GPrim_solid %s" % name)
-            indices.append(idx)
-        return indices
+    #         idx = self.add_GPrim_solid(name+"_face%d" % iface, xyzArray, triArray,
+    #                                    shading=True, orientation=True)
+    #         if idx < 0:
+    #             raise RuntimeError("failed to add GPrim_solid %s" % name)
+    #         indices.append(idx)
+    #     return indices
         
-    #@cython.boundscheck(False)
-    #@cython.wraparound(False)        
-    def add_GPrim_solid(self, name, 
-                        np.ndarray[np.float32_t, mode="c"] vertices not None,
-                        np.ndarray[int, mode="c"] indices not None,
-                        np.ndarray[unsigned char, mode="c"] colors=None,
-                        np.ndarray[np.float32_t, mode="c"] normals=None,
-                        visible=True,
-                        transparency=False,
-                        shading=False,
-                        orientation=False,
-                        points_visible=False,
-                        lines_visible=False
-                        ):
-        '''Do me a VBO solid.
+    # #@cython.boundscheck(False)
+    # #@cython.wraparound(False)        
+    # def add_GPrim_solid(self, name, 
+    #                     np.ndarray[np.float32_t, mode="c"] vertices not None,
+    #                     np.ndarray[int, mode="c"] indices not None,
+    #                     np.ndarray[unsigned char, mode="c"] colors=None,
+    #                     np.ndarray[np.float32_t, mode="c"] normals=None,
+    #                     visible=True,
+    #                     transparency=False,
+    #                     shading=False,
+    #                     orientation=False,
+    #                     points_visible=False,
+    #                     lines_visible=False
+    #                     ):
+    #     '''Do me a VBO solid.
         
-        name: str
-            Name of the primitive.
+    #     name: str
+    #         Name of the primitive.
             
-        vertices: Numpy ndarray (1xN*3 or Nx3)
-            Vector of triangle vertices.
+    #     vertices: Numpy ndarray (1xN*3 or Nx3)
+    #         Vector of triangle vertices.
         
-        indices: Numpy ndarray (1xM*3 or Mx3)
-            Vector of triangle connectivities.
+    #     indices: Numpy ndarray (1xM*3 or Mx3)
+    #         Vector of triangle connectivities.
         
-        colors: Numpy ndarray (1xM*3 or Mx3)
-            Optional. Vector of color coordinates per triangle.
+    #     colors: Numpy ndarray (1xM*3 or Mx3)
+    #         Optional. Vector of color coordinates per triangle.
         
-        normals: Numpy ndarray (1xM*3 or Mx3)
-            Optional. Vector of triangle outward-pointing normals.
+    #     normals: Numpy ndarray (1xM*3 or Mx3)
+    #         Optional. Vector of triangle outward-pointing normals.
             
-        visible: bool
-            Set to true to make this object visible. Default=True
+    #     visible: bool
+    #         Set to true to make this object visible. Default=True
             
-        transparency: bool
-            Set to true to turn on transparency
+    #     transparency: bool
+    #         Set to true to turn on transparency
 
-        shading: bool
-            Set to true to turn on shading
+    #     shading: bool
+    #         Set to true to turn on shading
 
-        orientation: bool
-            Set to true to turn on orientation (TODO: What is this?)
+    #     orientation: bool
+    #         Set to true to turn on orientation (TODO: What is this?)
 
-        points_display: bool
-            Set to true to turn on display of vertices
+    #     points_display: bool
+    #         Set to true to turn on display of vertices
 
-        lines_display: bool
-            Set to true to turn on display of edges
-        '''
+    #     lines_display: bool
+    #         Set to true to turn on display of edges
+    #     '''
         
-        cdef int i, ndata, error_code, nitems, attr, ret
-        cdef wvData items[5]
-        cdef char *cname
+    #     cdef int i, ndata, error_code, nitems, attr, ret
+    #     cdef wvData items[5]
+    #     cdef char *cname
         
-        nitems = 2
+    #     nitems = 2
         
-        ndata = vertices.shape[0]/3
-        dbg("Processing %d vertices." % ndata)
+    #     ndata = vertices.shape[0]/3
+    #     dbg("Processing %d vertices." % ndata)
         
-        error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
-                                WV_VERTICES, &items[0])
-        dbg("Returned Status:", error_code)
-        if error_code != 0:
-            return error_code
+    #     error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
+    #                             WV_VERTICES, &items[0])
+    #     dbg("Returned Status:", error_code)
+    #     if error_code != 0:
+    #         return error_code
         
-        ndata = indices.shape[0]
-        dbg("Processing %d indices." % ndata)
+    #     ndata = indices.shape[0]
+    #     dbg("Processing %d indices." % ndata)
         
-        error_code = wv_setData(WV_INT32, ndata, &indices[0], 
-                                WV_INDICES, &items[1])
-        dbg("Returned Status: %s" % error_code)
-        if error_code != 0:
-            return error_code
+    #     error_code = wv_setData(WV_INT32, ndata, &indices[0], 
+    #                             WV_INDICES, &items[1])
+    #     dbg("Returned Status: %s" % error_code)
+    #     if error_code != 0:
+    #         return error_code
         
-        if colors is not None:
-            ndata = colors.shape[0]/3
-            dbg("Processing %d colors." % ndata)
+    #     if colors is not None:
+    #         ndata = colors.shape[0]/3
+    #         dbg("Processing %d colors." % ndata)
         
-            error_code = wv_setData(WV_UINT8, ndata, &colors[0], 
-                                    WV_COLORS, &items[nitems])
-            dbg("Returned Status:", error_code)
-            if error_code != 0:
-                return error_code
-            nitems += 1
+    #         error_code = wv_setData(WV_UINT8, ndata, &colors[0], 
+    #                                 WV_COLORS, &items[nitems])
+    #         dbg("Returned Status:", error_code)
+    #         if error_code != 0:
+    #             return error_code
+    #         nitems += 1
         
-        if normals is not None:
-            ndata = normals.shape[0]/3
-            dbg("Processing %d normals." % ndata)
+    #     if normals is not None:
+    #         ndata = normals.shape[0]/3
+    #         dbg("Processing %d normals." % ndata)
         
-            error_code = wv_setData(WV_REAL32, ndata, &normals[0], 
-                                    WV_NORMALS, &items[nitems])
-            dbg("Returned Status:", error_code)
-            if error_code != 0:
-                return error_code
-            nitems += 1
+    #         error_code = wv_setData(WV_REAL32, ndata, &normals[0], 
+    #                                 WV_NORMALS, &items[nitems])
+    #         dbg("Returned Status:", error_code)
+    #         if error_code != 0:
+    #             return error_code
+    #         nitems += 1
         
-        attr = make_attr(visible=visible, 
-                         transparency=transparency, 
-                         shading=shading, 
-                         orientation=orientation,
-                         points_visible=points_visible, 
-                         lines_visible=lines_visible)
+    #     attr = make_attr(visible=visible, 
+    #                      transparency=transparency, 
+    #                      shading=shading, 
+    #                      orientation=orientation,
+    #                      points_visible=points_visible, 
+    #                      lines_visible=lines_visible)
 
-        dbg("attr=",attr)
+    #     dbg("attr=",attr)
         
-        # Add the primitive
-        dbg("Adding the GPrim Object. nitems=%d, name=%s" %(nitems, name))
-        cname = name
-        ret = wv_addGPrim(self.context, cname, WV_TRIANGLE, attr, 
-                                  nitems, items)
-        dbg("done adding GPrim")
-        if ret < 0:
-            dbg("Returned error code:", ret)
-        else:
-            dbg("Returned Gprim index:", ret)
-        dbg("GPrim %s added." % self.context.gPrims.name)
+    #     # Add the primitive
+    #     dbg("Adding the GPrim Object. nitems=%d, name=%s" %(nitems, name))
+    #     cname = name
+    #     ret = wv_addGPrim(self.context, cname, WV_TRIANGLE, attr, 
+    #                               nitems, items)
+    #     dbg("done adding GPrim")
+    #     if ret < 0:
+    #         dbg("Returned error code:", ret)
+    #     else:
+    #         dbg("Returned Gprim index:", ret)
+    #     dbg("GPrim %s added." % self.context.gPrims.name)
         
-        dbg("There are %d primitives in context" % self.context.nGPrim)
+    #     dbg("There are %d primitives in context" % self.context.nGPrim)
 
-        #wv_printGPrim(self.context, wv_indexGPrim(self.context, cname))
+    #     #wv_printGPrim(self.context, wv_indexGPrim(self.context, cname))
 
-        return ret
+    #     return ret
         
-    #@cython.boundscheck(False)
-    #@cython.wraparound(False)        
-    def add_GPrim_wireframe(self, name,
-                            np.ndarray[np.float32_t, mode="c"] vertices not None,
-                            np.ndarray[int, mode="c"] indices not None,
-                            visible=True,
-                            ):
-        '''Declare a wireframe VBO.
+    # #@cython.boundscheck(False)
+    # #@cython.wraparound(False)        
+    # def add_GPrim_wireframe(self, name,
+    #                         np.ndarray[np.float32_t, mode="c"] vertices not None,
+    #                         np.ndarray[int, mode="c"] indices not None,
+    #                         visible=True,
+    #                         ):
+    #     '''Declare a wireframe VBO.
         
-        name: str
-            Name of the primitive.
+    #     name: str
+    #         Name of the primitive.
             
-        vertices: Numpy ndarray (1xN*3 or Nx3)
-            Vector of vertex coordinates.
+    #     vertices: Numpy ndarray (1xN*3 or Nx3)
+    #         Vector of vertex coordinates.
         
-        indices: Numpy ndarray (1xM*2 or Mx2)
-            Vector of line connectivities.
+    #     indices: Numpy ndarray (1xM*2 or Mx2)
+    #         Vector of line connectivities.
         
-        visible: bool
-            Set to true to make this object visible. Default=True
-        '''
+    #     visible: bool
+    #         Set to true to make this object visible. Default=True
+    #     '''
 
-        cdef int ndata, error_code, nitems, ret
-        cdef wvData items[2]
-        nitems = 2
+    #     cdef int ndata, error_code, nitems, ret
+    #     cdef wvData items[2]
+    #     nitems = 2
         
-        ndata = vertices.shape[0]/3
-        dbg("Processing %d vertices." % ndata)
+    #     ndata = vertices.shape[0]/3
+    #     dbg("Processing %d vertices." % ndata)
         
-        error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
-                                WV_VERTICES, &items[0])
-        dbg("Returned Status:", error_code)
-        if error_code != 0:
-            return error_code
+    #     error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
+    #                             WV_VERTICES, &items[0])
+    #     dbg("Returned Status:", error_code)
+    #     if error_code != 0:
+    #         return error_code
         
-        ndata = indices.shape[0]
-        dbg("Processing %d indices." % ndata)
+    #     ndata = indices.shape[0]
+    #     dbg("Processing %d indices." % ndata)
         
-        error_code = wv_setData(WV_INT32, ndata, &indices[0], 
-                                WV_INDICES, &items[1])
-        dbg("Returned Status:", error_code)
-        if error_code != 0:
-            return error_code
+    #     error_code = wv_setData(WV_INT32, ndata, &indices[0], 
+    #                             WV_INDICES, &items[1])
+    #     dbg("Returned Status:", error_code)
+    #     if error_code != 0:
+    #         return error_code
 
-        # Assemble the attributes
-        attr = 0
-        if visible:
-            attr = attr|WV_ON
+    #     # Assemble the attributes
+    #     attr = 0
+    #     if visible:
+    #         attr = attr|WV_ON
         
-        # Add the primitive
-        dbg("Adding the GPrim Object")
-        ret = wv_addGPrim(self.context, name, WV_LINE, attr, 
-                          nitems, items)
-        if ret < 0:
-            dbg("Returned error code:", ret)
-        else:
-            dbg("Returned Gprim index:", ret)
-        dbg("GPrim %s added." % self.context.gPrims.name)
+    #     # Add the primitive
+    #     dbg("Adding the GPrim Object")
+    #     ret = wv_addGPrim(self.context, name, WV_LINE, attr, 
+    #                       nitems, items)
+    #     if ret < 0:
+    #         dbg("Returned error code:", ret)
+    #     else:
+    #         dbg("Returned Gprim index:", ret)
+    #     dbg("GPrim %s added." % self.context.gPrims.name)
         
-        dbg("There are %d primitives in context" % self.context.nGPrim)
+    #     dbg("There are %d primitives in context" % self.context.nGPrim)
 
-        return ret
+    #     return ret
         
 
-    #@cython.boundscheck(False)
-    #@cython.wraparound(False)        
-    def add_GPrim_pointcloud(self, name,
-                             np.ndarray[np.float32_t, mode="c"] vertices not None,
-                             np.ndarray[unsigned char, mode="c"] colors=None,
-                             visible=True,
-                             ):
-        '''Declare a cloud of points VBO.
+    # #@cython.boundscheck(False)
+    # #@cython.wraparound(False)        
+    # def add_GPrim_pointcloud(self, name,
+    #                          np.ndarray[np.float32_t, mode="c"] vertices not None,
+    #                          np.ndarray[unsigned char, mode="c"] colors=None,
+    #                          visible=True,
+    #                          ):
+    #     '''Declare a cloud of points VBO.
         
-        name: str
-            Name of the primitive.
+    #     name: str
+    #         Name of the primitive.
             
-        vertices: Numpy ndarray (1xN*3 or Nx3)
-            Vector of point coordinates.
+    #     vertices: Numpy ndarray (1xN*3 or Nx3)
+    #         Vector of point coordinates.
         
-        colors: Numpy ndarray (1x3)
-            Optional. Vector of color coordinates for this group of points.
+    #     colors: Numpy ndarray (1x3)
+    #         Optional. Vector of color coordinates for this group of points.
             
-        visible: bool
-            Set to true to make this object visible. Default=True
-        '''
+    #     visible: bool
+    #         Set to true to make this object visible. Default=True
+    #     '''
 
-        cdef int ndata, error_code, nitems, ret
-        cdef wvData items[2]
-        nitems = 1
+    #     cdef int ndata, error_code, nitems, ret
+    #     cdef wvData items[2]
+    #     nitems = 1
         
-        ndata = vertices.shape[0]/3
-        print "Processing %d vertices." % ndata
+    #     ndata = vertices.shape[0]/3
+    #     print "Processing %d vertices." % ndata
         
-        error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
-                                WV_VERTICES, &items[0])
-        print "Returned Status:", error_code
-        if error_code != 0:
-            return error_code
+    #     error_code = wv_setData(WV_REAL32, ndata, &vertices[0], 
+    #                             WV_VERTICES, &items[0])
+    #     print "Returned Status:", error_code
+    #     if error_code != 0:
+    #         return error_code
         
-        if colors is not None:
-            ndata = 1
-            print "Processing %d colors." % ndata
+    #     if colors is not None:
+    #         ndata = 1
+    #         print "Processing %d colors." % ndata
         
-            error_code = wv_setData(WV_REAL32, ndata, &colors[0], 
-                                    WV_COLORS, &items[nitems])
-            print "Returned Status:", error_code
-            if error_code != 0:
-                return error_code
-            nitems += 1
+    #         error_code = wv_setData(WV_REAL32, ndata, &colors[0], 
+    #                                 WV_COLORS, &items[nitems])
+    #         print "Returned Status:", error_code
+    #         if error_code != 0:
+    #             return error_code
+    #         nitems += 1
         
-        # Assemble the attributes
-        attr = 0
-        if visible:
-            attr = attr|WV_ON
+    #     # Assemble the attributes
+    #     attr = 0
+    #     if visible:
+    #         attr = attr|WV_ON
         
-        # Add the primitive
-        print "Adding the GPrim Object"
-        ret = wv_addGPrim(self.context, name, WV_POINT, attr, 
-                                  nitems, items)
-        if ret < 0:
-            print "Returned error code:", ret
-        else:
-            print "Returned Gprim index:", ret
-        print "GPrim %s added." % self.context.gPrims.name
+    #     # Add the primitive
+    #     print "Adding the GPrim Object"
+    #     ret = wv_addGPrim(self.context, name, WV_POINT, attr, 
+    #                               nitems, items)
+    #     if ret < 0:
+    #         print "Returned error code:", ret
+    #     else:
+    #         print "Returned Gprim index:", ret
+    #     print "GPrim %s added." % self.context.gPrims.name
         
-        print "There are %d primitives in context" % self.context.nGPrim
+    #     print "There are %d primitives in context" % self.context.nGPrim
 
-        return ret
+    #     return ret
         
         
     #@cython.boundscheck(False)
@@ -657,6 +658,45 @@ cdef class WV_Wrapper:
                              orientation=True,
                              points_visible=False,
                              lines_visible=False):
+        """
+        Set up VBO data for a face.
+        
+            points: float32 Numpy ndarray (1xN*3 or Nx3)
+                Vector of point coordinates for the given face.
+
+            tris: int Numpy ndarray (1xM*3 or Mx3)
+                Vector of triangle connectivities.
+
+            colors: float32 Numpy ndarray (1x3)
+                Optional. Vector of color coordinates for this group of points.
+
+            normals: Numpy ndarray (1xM*3 or Mx3)
+                Optional. Vector of triangle outward-pointing normals.
+
+            name: string
+                Name of graphics primitive.
+
+            bbox: array, ndarray, or list of size 6 [xmin,ymin,zmin,xmax,ymax,zmax]
+                Bounding box.
+                
+            visible: bool
+                Set to true to make this object visible. Default=True
+                
+            transparency: bool
+                Set to true to turn on transparency
+
+            shading: bool
+                Set to true to turn on shading
+
+            orientation: bool
+                Set to true to turn on orientation (TODO: What is this?)
+
+            points_visible: bool
+                Set to true to turn on display of vertices
+
+            lines_visible: bool
+                Set to true to turn on display of edges
+        """
         cdef int attr
         cdef float color[3], focus[4]
         cdef char *gpname
@@ -731,7 +771,39 @@ cdef class WV_Wrapper:
                              orientation=False,
                              points_visible=False,
                              lines_visible=False):
+        """
+        Set up VBO data for an edge.
 
+            points: float32 Numpy ndarray (1xN*3 or Nx3)
+                Vector of point coordinates for the given edge.
+            
+            colors: float32 Numpy ndarray (1x3)
+                Optional. Vector of color coordinates for this group of points.
+
+            bbox: array, ndarray, or list of size 6 [xmin,ymin,zmin,xmax,ymax,zmax]
+                Bounding box.
+                
+            visible: bool
+                Set to true to make this object visible. Default=True
+                
+            visible: bool
+                Set to true to make this object visible. Default=True
+                
+            transparency: bool
+                Set to true to turn on transparency
+
+            shading: bool
+                Set to true to turn on shading
+
+            orientation: bool
+                Set to true to turn on orientation (TODO: What is this?)
+
+            points_visible: bool
+                Set to true to turn on display of vertices
+
+            lines_visible: bool
+                Set to true to turn on display of edges
+       """
         cdef float color[3], focus[4]
         cdef char *gpname
         cdef int head, attr

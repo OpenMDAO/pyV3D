@@ -85,8 +85,10 @@ class WSBinaryHandler(BaseWSHandler):
         self.wv.prepare_for_sends()
 
         if first:
-            self.wv.send_GPrim(self, self.buf, 1, self.send_binary_data)  # send init packet
+            self.wv.send_GPrim(self, self.buf,  1, self.send_binary_data)  # send init packet
             self.wv.send_GPrim(self, self.buf, -1, self.send_binary_data)  # send initial suite of GPrims
+        else:  #FIXME: add updating of GPRims here...
+            pass
 
         self.wv.finish_sends()
 
@@ -159,7 +161,7 @@ try:
             geom = self.my_param_geom.get_geometry()
             if geom is None:
                 raise RuntimeError("can't get Geometry object")
-            self.wv.load_geometry(geom, angle=15., relSide=.02, relSag=.001)
+            geom.get_visualization_data(self.wv, angle=15., relSide=.02, relSag=.001)
 
 except ImportError:
     GEMWSBinaryHandler = None

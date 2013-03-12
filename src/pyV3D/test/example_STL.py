@@ -33,7 +33,7 @@ up     = array([0.0, 1.0, 0.0], dtype=float32)
 myWV.createContext(0, 30.0, 1.0, 10.0, eye, center, up)
 
 myGeometry = GeometryObject("sr22.stl") 
-myWV.load_geometry(myGeometry)
+myGeometry.get_tessellation(myWV)
 
 buf = 3205696*' '
 wsi = wsi_server()

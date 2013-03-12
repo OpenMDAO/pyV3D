@@ -239,7 +239,7 @@ class GeometryObject(object):
         self.filename = filename
         self.geom_name = os.path.basename(filename)[:-4]
         
-    def get_visualization_data(self, wv, *args, **kwargs):
+    def get_tessellation(self, wv, *args, **kwargs):
         '''Load a tesselation from a geometry model.
         
         wv: WV_Wrapper instance
@@ -394,13 +394,6 @@ cdef class WV_Wrapper:
     #     #     indices.append(idx)
             
     #     # return indices        
-        
-    def load_from_STL(self, filename):
-        '''Load a geomtry from an  STL file.
-        
-        filename: str
-            Name of STL file to load
-        '''
         
     # def load_DRep(self, drep, ibrep, nfaces, name=None):
     #     '''Load model ibrep from a GEM DRep

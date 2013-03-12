@@ -79,6 +79,8 @@ function getSockets(wsURLp, srv)
   var ws_ctor = window['MozWebSocket'] ? window['MozWebSocket'] : window['WebSocket'];
   var socketGp, socketUT;
 
+  g.messageQ         = [];              // a place to put the binary messages
+  
   if (srv===1) { // connect to wvserver (two different websocket handlers)
       socketGp = new ws_ctor(wsURLp+'/ws/binary'); 
       socketUt = new ws_ctor(wsURLp+'/ws/text'); 
@@ -99,8 +101,6 @@ function getSockets(wsURLp, srv)
   socketUt.onmessage = function(evt) { wsUtOnMessage(evt) };
   socketUt.onerror   = function(evt) { wsUtOnError(evt)   };
   g.socketUt         = socketUt;
-  
-  g.messageQ         = [];              // a place to put the binary messages
 }
 
 

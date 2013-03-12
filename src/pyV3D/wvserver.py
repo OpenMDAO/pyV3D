@@ -9,27 +9,20 @@ from tornado.web import RequestHandler, StaticFileHandler
 
 from argparse import ArgumentParser
 
-from pygem_diamond import gem
-from pygem_diamond.pygem import GEMParametricGeometry
-from pyV3D.pyV3D import WV_Wrapper
+from pyV3D.pyV3D import WV_Wrapper, WV_ON, WV_SHADING, WV_ORIENTATION
 
 #sample_file = os.path.join(os.path.dirname(__file__), "test", "sample.csm")
-sample_file = os.path.join(os.path.dirname(__file__), "test", "box1.csm")
-
-debug = True
+#sample_file = os.path.join(os.path.dirname(__file__), "test", "box1.csm")
 
 def ERROR(*args):
     for arg in args:
         sys.stderr.write(str(arg))
         sys.stderr.write(" ")
     sys.stderr.write('\n')
+    sys.stderr.flush()
 
-if debug:
-    DEBUG = ERROR
-else:
-    def DEBUG(*args):
-        pass
-
+def DEBUG(*args):
+    pass
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -39,52 +32,38 @@ def get_argument_parser():
     parser = ArgumentParser(description='launch the test server')
     parser.add_argument('-p', '--port', type=int, dest='port', default=8000,
                         help='port to run server on')
+    parser.add_argument("-d","--debug", action="store_true", dest='debug',
+                        help="turn on debug mode")
+    parser.add_argument('geometry_file', nargs='?',
+                        help='pathname of geometry file to view')
     return parser
+
 
 class BaseWSHandler(websocket.WebSocketHandler):
     def _handle_request_exception(self, exc):
         ERROR("Unhandled exception: %s" % str(exc))
         super(BaseWSHandler, self)._handle_request_exception(exc)
 
-# Determining size of buf for websockets:
-#    define MAX_MUX_RECURSION 2
-#    define LWS_SEND_BUFFER_PRE_PADDING (4 + 10 + (2 * MAX_MUX_RECURSION))
-#    define LWS_SEND_BUFFER_POST_PADDING 1
-#     unsigned char buf[LWS_SEND_BUFFER_PRE_PADDING + 128 +
-#                             LWS_SEND_BUFFER_POST_PADDING]
-#
-# so -> 4 + 10 + 2*2 + 128 + 1 = 147
 
 class WSTextHandler(BaseWSHandler):
-    def __init__(self, application, request, **kwargs):
-        super(WSTextHandler, self).__init__(application, request, **kwargs)
-    
+
     def open(self):
         DEBUG("text WebSocket opened")
-
-    def on_message(self, message):
-        DEBUG("text WS: got message: %s" % message)
-        #self.write_message(u"You said: " + message)
 
     def on_close(self):
         DEBUG("text WebSocket closed")
 
-    # def select_subprotocol(self, subprotocols):
-    #     print 'asked for subprotocols: %s' % subprotocols
-    #     if "pyv3d-text/1.0" in subprotocols:
-    #         return "pyv3d-text/1.0"
-    #     return None
-
 
 class WSBinaryHandler(BaseWSHandler):
-    def __init__(self, application, request, **kwargs):
-        self.idxs = []
-        super(WSBinaryHandler, self).__init__(application, request, **kwargs)
-    
+    def initialize(self):
+        self.wv = WV_Wrapper()
+        self.buf = self.wv.get_bufflen()*'\0'
+
     def open(self):
         DEBUG("binary WebSocket opened")
         try:
             self.create_geom()
+            self.send_geometry(first=True)
         except Exception as err:
             ERROR('Exception: %s' % traceback.format_exc())
 
@@ -94,114 +73,141 @@ class WSBinaryHandler(BaseWSHandler):
     def on_close(self):
         DEBUG("binary WebSocket closed")
 
-    # def select_subprotocol(self, subprotocols):
-    #     print 'binary ws asked for subprotocols: %s' % subprotocols
-    #     if "pyv3d-binary/1.0" in subprotocols:
-    #         return "pyv3d-binary/1.0"
-    #     return None
-
     def send_binary_data(self, wsi, buf, ibuf):
         try:
-            DEBUG( "In send_binary_data")
-            DEBUG( "length", len(buf))
-            DEBUG( "ibuf", ibuf)
-            DEBUG( "buf type=", str(type(buf)))
-            with open("pyserver_buff.out", "wb") as f:
-                for i in range(ibuf):
-                    f.write(buf[i])
             self.write_message(buf, binary=True)
-
-            # for idx in self.idxs:
-            #     print "removing GPrim %s" % idx
-            #     self.myWV.remove_GPrim(idx)
-
-            self.idxs = []
         except Exception as err:
             ERROR("Exception in send_binary_data:", err)
             return -1
-        
         return 0
 
-    def create_geom(self):
+    def send_geometry(self, first=False):
+        self.wv.prepare_for_sends()
 
-        self.myWV = myWV = WV_Wrapper()
+        if first:
+            self.wv.send_GPrim(self, self.buf,  1, self.send_binary_data)  # send init packet
+            self.wv.send_GPrim(self, self.buf, -1, self.send_binary_data)  # send initial suite of GPrims
+        else:  #FIXME: add updating of GPRims here...
+            pass
+
+        self.wv.finish_sends()
+
+
+class SimpleWSTextHandler(WSTextHandler):
+    pass
+
+class SimpleWSBinaryHandler(WSBinaryHandler):
+
+    def create_geom(self):
 
         eye    = array([0.0, 0.0, 7.0], dtype=float32)
         center = array([0.0, 0.0, 0.0], dtype=float32)
         up     = array([0.0, 1.0, 0.0], dtype=float32)
-        bias  = 1
         fov   = 30.0
         zNear = 1.0
         zFar  = 10.0
 
-        myWV.createContext(bias, fov, zNear, zFar, eye, center, up)
-
-        self.my_param_geom = GEMParametricGeometry()
-        self.my_param_geom.model_file = sample_file
-        geom = self.my_param_geom.get_geometry()
-        if geom is None:
-            raise RuntimeError("can't get Geometry object")
-        indices = myWV.load_geometry(geom, angle=15., relSide=.02, relSag=.001)
-
-        # self.myContext = gem.Context()
-        # myModel = self.myContext.loadModel(sample_file)
-        # server, filename, modeler, uptodate, myBReps, nparam, \
-        #     nbranch, nattr = myModel.getInfo()
-
-        # print 'len(myBReps) = ', len(myBReps)
-
-        # myDRep = myModel.newDRep()
-
-        # for i,brep in enumerate(myBReps):
-        #     # How many faces?
-        #     box, typ, nnode, nedge, nloop, nface, nshell, nattr = brep.getInfo()
-        #     print nface, "faces"
-
-        #     name = "brep_%d" % (i+1)
-
-        #     # Tesselate the brep
-        #     # brep, maxang, maxlen, maxasg
-        #     myDRep.tessellate(i+1, 0, 0, 0)
-
-        #     self.idxs.extend(myWV.load_DRep(myDRep, i+1, nface, name=name))
+        bias = 0
+        self.wv.createContext(bias, fov, zNear, zFar, eye, center, up)
+        self.wv.createBox("Box$1", WV_ON|WV_SHADING|WV_ORIENTATION, [0.,0.,0.])
 
 
-        # WV_ON = 1
-        # WV_SHADING = 4
-        # WV_ORIENTATION = 8
-        # myWV.createBox("Box$1", WV_ON|WV_SHADING|WV_ORIENTATION, [0.,0.,0.])
+# create handlers for pygem geometry only if pygem_diamond package is installed
+try:
+    from pygem_diamond import gem
+    from pygem_diamond.pygem import GEMParametricGeometry
 
-        DEBUG('prep for send')
-        myWV.prepare_for_sends()
+    class GEMWSTextHandler(WSTextHandler):
+        def on_message(self, message):
+            pass
+            #if message.startswith('identify;'):
+            #    self.write_message('identify:wvserver')
+            # elif message.startswith('getPmtrs;'):
+            #     pass
+            # elif message.startswith('setPmtr'):
+            #     pass
+            # elif message.startswith('getBrchs;'):
+            #     pass
+            # elif message.startswith('toglBrch;'):
+            #     pass
+            # elif message.startswith('build;'):
+            #     pass
+            # elif message.startswith('save'):
+            #     pass
 
-        buf = (3205696+19)*' '
-        DEBUG('sendGPrim')
-        myWV.send_GPrim(self, buf, 1, self.send_binary_data)  # send init packet
-        DEBUG('init packet done')
-        myWV.send_GPrim(self, buf, -1, self.send_binary_data)  # send initial suite of GPrims
 
-        DEBUG('finish sends')
-        myWV.finish_sends()
+    class GEMWSBinaryHandler(WSBinaryHandler):
+        def initialize(self, options):
+            try:
+                super(GEMWSBinaryHandler, self).initialize()
+                self.geometry_file = options.geometry_file
+            except Exception as err:
+                ERROR('Exception: %s' % traceback.format_exc())
+
+        def create_geom(self):
+            DEBUG("create_geom")
+            eye    = array([0.0, 0.0, 7.0], dtype=float32)
+            center = array([0.0, 0.0, 0.0], dtype=float32)
+            up     = array([0.0, 1.0, 0.0], dtype=float32)
+            fov   = 30.0
+            zNear = 1.0
+            zFar  = 10.0
+
+            bias  = 1
+            self.wv.createContext(bias, fov, zNear, zFar, eye, center, up)
+
+            self.my_param_geom = GEMParametricGeometry()
+            self.my_param_geom.model_file = os.path.expanduser(os.path.abspath(self.geometry_file))
+            geom = self.my_param_geom.get_geometry()
+            if geom is None:
+                raise RuntimeError("can't get Geometry object")
+            geom.get_visualization_data(self.wv, angle=15., relSide=.02, relSag=.001)
+
+except ImportError:
+    GEMWSBinaryHandler = None
+    GEMWSTextHandler = None
 
 
 def main():
     ''' Process command line arguments and run.
     '''
-    if os.path.isfile("pyserver_buff.out"):
-        os.remove("pyserver_buff.out")
+    global DEBUG
+
+    textargs = {}
+    binargs = {}
 
     parser = get_argument_parser()
     options, args = parser.parse_known_args()
 
+    if options.debug:
+        DEBUG = ERROR
+
+    if options.geometry_file is None: # just draw the cube
+        print 'No geometry file given, serving simple cube...'
+        binaryhandler = SimpleWSBinaryHandler
+        texthandler = SimpleWSTextHandler
+    elif options.geometry_file.lower().endswith('.csm'):
+        if GEMWSBinaryHandler is None:
+            raise RuntimeError("viewing opencsm files requires the pygem_diamond package")
+        else:
+            binaryhandler = GEMWSBinaryHandler
+            binargs = { 'options': options }
+            texthandler = GEMWSTextHandler
+    elif options.geometry_file.lower().endswith('.stl'):
+        raise RuntimeError("STL files not supported yet")
+    else:
+        raise RuntimeError("don't know how to read geometry file '%s'. unsupported format" % 
+                           os.path.basename(options.geometry_file))
 
     handlers = [
-        web.url(r'/', WSTextHandler),
-        web.url(r'/binary', WSBinaryHandler),
+        web.url(r'/',                web.RedirectHandler, {'url': '/index.html', 'permanent': False}),    
+        web.url(r'/ws/text',         texthandler,   textargs),
+        web.url(r'/ws/binary',       binaryhandler, binargs),
+        web.url(r'/(.*)',            web.StaticFileHandler, {'path': os.path.join(APP_DIR,'wvclient')}),
     ]
 
     app_settings = {
         'static_path':       APP_DIR,
-        #'template_path':     os.path.join(APP_DIR, 'partials'),
         'debug':             True,
     }
    
@@ -210,7 +216,7 @@ def main():
     http_server = httpserver.HTTPServer(app)
     http_server.listen(options.port)
 
-    DEBUG('Serving on port %d' % options.port)
+    print 'Serving on port %d' % options.port
     try:
         ioloop.IOLoop.instance().start()
     except KeyboardInterrupt:

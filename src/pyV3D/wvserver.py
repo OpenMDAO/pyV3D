@@ -168,6 +168,43 @@ except ImportError:
     GEMWSTextHandler = None
 
 
+try:
+    from PAM.configurations.pyv3d import GeoMACHParametricGeometry
+
+    class GeoMACHWSTextHandler(WSTextHandler):
+        def on_message(self, message):
+            pass
+
+    class GeoMACHWSBinaryHandler(WSBinaryHandler):
+        def initialize(self, options):
+            try:
+                super(GeoMACHWSBinaryHandler, self).initialize()
+                self.modpath = options.geometry_file
+            except Exception as err:
+                ERROR('Exception: %s' % traceback.format_exc())
+
+        def create_geom(self):
+            DEBUG("create_geom")
+            eye    = array([0.0, 0.0, 7.0], dtype=float32)
+            center = array([0.0, 0.0, 0.0], dtype=float32)
+            up     = array([0.0, 1.0, 0.0], dtype=float32)
+            fov   = 30.0
+            zNear = 1.0
+            zFar  = 10.0
+
+            bias  = 1
+            self.wv.createContext(bias, fov, zNear, zFar, eye, center, up)
+
+            self.my_param_geom = GeoMACHParametricGeometry(self.modpath)
+            geom = self.my_param_geom.get_geometry()
+            if geom is None:
+                raise RuntimeError("can't get Geometry object")
+            geom.get_visualization_data(self.wv)
+except ImportError:
+    GeoMACHWSBinaryHandler = None
+    GeoMACHWSTextHandler = None
+
+
 def main():
     ''' Process command line arguments and run.
     '''
@@ -195,6 +232,12 @@ def main():
             texthandler = GEMWSTextHandler
     elif options.geometry_file.lower().endswith('.stl'):
         raise RuntimeError("STL files not supported yet")
+    elif '.' in options.geometry_file:
+        if GeoMACHWSBinaryHandler is None:
+            raise RuntimeError("viewing geomach files requires the GeoMACH package")
+        binaryhandler = GeoMACHWSBinaryHandler
+        binargs = { 'options': options }
+        texthandler = GeoMACHWSTextHandler
     else:
         raise RuntimeError("don't know how to read geometry file '%s'. unsupported format" % 
                            os.path.basename(options.geometry_file))

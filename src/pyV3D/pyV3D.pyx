@@ -230,7 +230,7 @@ def _check(int ret, name='?', errclass=RuntimeError):
     return ret
     
     
-class GeometryObject(object):
+class STLGeometryObject(object):
     '''This is an object that follows the IStaticGeometry interface.
     '''
     
@@ -239,7 +239,7 @@ class GeometryObject(object):
         self.filename = filename
         self.geom_name = os.path.basename(filename)[:-4]
         
-    def get_tessellation(self, wv, *args, **kwargs):
+    def get_visualization_data(self, wv, *args, **kwargs):
         '''Load a tesselation from a geometry model.
         
         wv: WV_Wrapper instance
@@ -279,7 +279,8 @@ class GeometryObject(object):
                 # Finish with this solid and prepare for next one.
                 elif fields[0] == 'endsolid':
                 
-                    ntri = len(vertices)/3
+                    nver = len(vertices)
+                    ntri = nver/3
                     
                     # Determine bounding box.
                     min_x = max_x = vertices[0]
@@ -297,11 +298,17 @@ class GeometryObject(object):
                         
                     nsolid += 1
                     wv.set_face_data(np.array(vertices, dtype=np.float32),
-                                     np.array(range(ntri), dtype=np.int32),
+                                     np.array(range(nver), dtype=np.int32),
                                      None,
                                      np.array(normals, dtype=np.float32), 
                                      bbox=box,
                                      name="%s_solid%d"%(self.geom_name, nsolid))
+                        
+                    from pprint import pprint
+                    pprint (np.array(vertices, dtype=np.float32))             
+                    pprint (np.array(range(nver), dtype=np.int32))            
+                    pprint (np.array(normals, dtype=np.float32)   )          
+                    dbg(' added gprim with %d vertices' % len(vertices))
                                  
                     normals = []
                     vertices = []
@@ -781,7 +788,7 @@ cdef class WV_Wrapper:
         cdef int attr
         cdef float color[3], focus[4]
         cdef char *gpname
-        cdef wvData items[5]
+        cdef wvData items[6]
         cdef np.ndarray[np.int32_t, ndim=1, mode="c"] segs
 
         attr = make_attr(visible=visible, 
@@ -814,6 +821,15 @@ cdef class WV_Wrapper:
 
         _check(wv_setData(WV_REAL32, 1, color, WV_COLORS, &items[2]), "wv_setData")
 
+        # normals
+        if normals is not None:
+            _check(wv_setData(WV_REAL32, len(points)/3, &normals[0], WV_NORMALS, &items[3]),
+                   "wv_setData")
+            it_col = 4
+        else:
+            it_col = 3
+            
+
         # triangle sides (segments)
         segs = np.empty(6*ntris, dtype=np.int32, order='C')
         nseg = 0
@@ -823,7 +839,7 @@ cdef class WV_Wrapper:
                 segs[2*nseg+1] = tris[3*itri+(k+2)%3]
                 nseg+=1
 
-        _check(wv_setData(WV_INT32, 2*nseg, &segs[0], WV_LINDICES, &items[3]),
+        _check(wv_setData(WV_INT32, 2*nseg, &segs[0], WV_LINDICES, &items[it_col]),
             "wv_setData")
 
         # segment colors
@@ -831,7 +847,7 @@ cdef class WV_Wrapper:
         color[1] = 0.0;
         color[2] = 0.0;
 
-        _check(wv_setData(WV_REAL32, 1, color, WV_LCOLOR, &items[4]), "wv_setData")
+        _check(wv_setData(WV_REAL32, 1, color, WV_LCOLOR, &items[it_col+1]), "wv_setData")
 
         # make graphic primitive 
         gpname = name

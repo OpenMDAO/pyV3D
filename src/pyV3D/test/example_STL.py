@@ -1,4 +1,4 @@
-from pyV3D.pyV3D import WV_Wrapper, GeometryObject
+from pyV3D.pyV3D import WV_Wrapper, STLGeometryObject
 
 from numpy import array, float64, float32, int32, uint8
 
@@ -32,8 +32,8 @@ up     = array([0.0, 1.0, 0.0], dtype=float32)
 
 myWV.createContext(0, 30.0, 1.0, 10.0, eye, center, up)
 
-myGeometry = GeometryObject("sr22.stl") 
-myGeometry.get_tessellation(myWV)
+myGeometry = STLGeometryObject("sr22.stl") 
+myGeometry.get_visualization_data(myWV)
 
 buf = 3205696*' '
 wsi = wsi_server()

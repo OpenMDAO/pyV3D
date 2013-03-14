@@ -298,16 +298,12 @@ class STLGeometryObject(object):
                         
                     nsolid += 1
                     wv.set_face_data(np.array(vertices, dtype=np.float32),
-                                     np.array(range(nver), dtype=np.int32),
+                                     np.array(range(1, ntri+1), dtype=np.int32),
                                      None,
                                      np.array(normals, dtype=np.float32), 
                                      bbox=box,
                                      name="%s_solid%d"%(self.geom_name, nsolid))
                         
-                    from pprint import pprint
-                    pprint (np.array(vertices, dtype=np.float32))             
-                    pprint (np.array(range(nver), dtype=np.int32))            
-                    pprint (np.array(normals, dtype=np.float32)   )          
                     dbg(' added gprim with %d vertices' % len(vertices))
                                  
                     normals = []

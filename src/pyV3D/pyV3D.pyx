@@ -367,7 +367,7 @@ cdef class WV_Wrapper:
                                         &eye[0], &center[0], &up[0])
         
     def get_bufflen(self):
-        return BUFLEN+256
+        return BUFLEN
         
     # def load_geometry(self, geometry, sub_index=None, name='geometry',
     #                   angle=0., relSide=0., relSag=0.):

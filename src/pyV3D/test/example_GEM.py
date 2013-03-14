@@ -15,7 +15,6 @@ def send_binary_data(wsi, buf, ibuf):
     #print "buffer", [buf[i] for i in range(0, ibuf)]
     print ibuf
     wsi.check()
-    wsi.write_to_file('cube.bin', buf)
     
     return 0
 

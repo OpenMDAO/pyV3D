@@ -167,6 +167,35 @@ except ImportError:
     GEMWSBinaryHandler = None
     GEMWSTextHandler = None
 
+from pyV3D.pyV3D import STLGeometryObject
+
+class STLWSTextHandler(WSTextHandler):
+    pass
+
+class STLWSBinaryHandler(WSBinaryHandler):
+        def initialize(self, options):
+            try:
+                super(STLWSBinaryHandler, self).initialize()
+                self.geometry_file = options.geometry_file
+            except Exception as err:
+                ERROR('Exception: %s' % traceback.format_exc())
+
+        def create_geom(self):
+            DEBUG("create_geom")
+            eye    = array([0.0, 0.0, 7.0], dtype=float32)
+            center = array([0.0, 0.0, 0.0], dtype=float32)
+            up     = array([0.0, 1.0, 0.0], dtype=float32)
+            fov   = 30.0
+            zNear = 1.0
+            zFar  = 10.0
+
+            bias  = 1
+            self.wv.createContext(bias, fov, zNear, zFar, eye, center, up)
+
+            self.model_file = os.path.expanduser(os.path.abspath(self.geometry_file))
+            geom = STLGeometryObject(self.model_file)
+            geom.get_visualization_data(self.wv, angle=15., 
+                                        relSide=.02, relSag=.001)
 
 try:
     from PAM.configurations.pyv3d import GeoMACHParametricGeometry
@@ -231,7 +260,12 @@ def main():
             binargs = { 'options': options }
             texthandler = GEMWSTextHandler
     elif options.geometry_file.lower().endswith('.stl'):
-        raise RuntimeError("STL files not supported yet")
+        if STLWSBinaryHandler is None:
+            raise RuntimeError("something is messed up. Contact Bret Naylor.")
+        else:
+            binaryhandler = STLWSBinaryHandler
+            binargs = { 'options': options }
+            texthandler = STLWSTextHandler
     elif '.' in options.geometry_file:
         if GeoMACHWSBinaryHandler is None:
             raise RuntimeError("viewing geomach files requires the GeoMACH package")

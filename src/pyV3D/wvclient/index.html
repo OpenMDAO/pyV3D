@@ -30,9 +30,10 @@
     g.zFar  = 11.0;
 
     //var url = prompt("Enter hostname:port", "Localhost:8000");
+    var fname = prompt("Enter name of file (or click OK to see Awesome Cube\u2122)", "");
     // initialize webSockets
     //getSockets("ws://"+url, 1);
-    getSockets("ws://"+window.location.host, 1);
+    getSockets("ws://"+window.location.host, fname);
 
 </script>
 

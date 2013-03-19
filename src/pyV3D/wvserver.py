@@ -10,10 +10,9 @@ from tornado.web import RequestHandler, StaticFileHandler
 
 from argparse import ArgumentParser
 
-from pyV3D.pyV3D import WV_Wrapper, WV_ON, WV_SHADING, WV_ORIENTATION
+from pyV3D.pyV3D import WV_Wrapper, WV_ON, WV_SHADING, WV_ORIENTATION, STLGeometryObject
 
-#sample_file = os.path.join(os.path.dirname(__file__), "test", "sample.csm")
-#sample_file = os.path.join(os.path.dirname(__file__), "test", "box1.csm")
+_undefined_ = object()
 
 def ERROR(*args):
     for arg in args:
@@ -35,8 +34,8 @@ def get_argument_parser():
                         help='port to run server on')
     parser.add_argument("-d","--debug", action="store_true", dest='debug',
                         help="turn on debug mode")
-    parser.add_argument('geometry_file', nargs='?',
-                        help='pathname of geometry file to view')
+    parser.add_argument('viewdir', nargs='?', default='.',
+                        help='pathname of directory containing files to view')
     return parser
 
 
@@ -54,53 +53,69 @@ class WSTextHandler(BaseWSHandler):
     def on_close(self):
         DEBUG("text WebSocket closed")
 
+    def on_message(self, message):
+        DEBUG("text Websocket received message: %s" % message)
 
 class WSBinaryHandler(BaseWSHandler):
-    def initialize(self):
-        self.wv = WV_Wrapper()
-        self.buf = self.wv.get_bufflen()*'\0'
-        self._sent = []
-        self._received = []
+    def _execute(self, transforms, *args, **kwargs):
+        global VIEWERS, _viewdir
+
+        try:
+            self.view_server = geometry_file = klass = None
+            if len(args) > 0 and args[0]:
+                geometry_file = os.path.join(_viewdir, args[0].replace('..', ''))
+                parts = geometry_file.rsplit('.', 1)
+                if len(parts) > 1:
+                    ext = '.'+parts[1]
+                    try:
+                        klass, pkg = VIEWERS[parts[1]]
+                    except KeyError:
+                        pass
+                else:
+                    ext = 'None'
+            else:
+                klass = CubeViewServer
+
+            if klass is _undefined_:
+                raise RuntimeError("no viewer loaded for extension '%s'. Most likely, package '%s' failed to load" % (ext,pkg))
+            if klass:
+                self.view_server = klass(handler=self, fname=geometry_file)
+            args = args[1:]
+            super(WSBinaryHandler, self)._execute(transforms, *args, **kwargs)
+        except Exception as err:
+            DEBUG("%s" % str(err))
 
     def open(self):
-        DEBUG("binary WebSocket opened")
+        if self.view_server is None:
+            self.send_error(404)
+            return
         try:
-            self.create_geom()
-            self.send_geometry(first=True)
+            self.view_server.open()
         except Exception as err:
             ERROR('Exception: %s' % traceback.format_exc())
 
     def on_message(self, message):
-        #DEBUG("binary ws got message: %s" % message)
-        self._received.append(message)
-        s = self._sent[len(self._received)-1]
-        DEBUG("sent len = %d, type=%s" % (len(s), type(s)))
-        DEBUG("received len = %d, type=%s" % (len(message), type(message)))
-        if len(s) == len(message):
-            for i in range(len(s)):
-                if ord(s[i]) != ord(message[i]):
-                    DEBUG("[%d]:  s: %d  !=  r: %d" % (i,ord(s[i]),ord(message[i])))
-                    break
-            else:
-                DEBUG("match!")
-        with open("raw.out", "ab") as f:
-            f.write("%s\n" % [ord(c) for c in message])
-
+        if self.view_server is None:
+            self.send_error(404)
+            return
+        self.view_server.on_message(message)
 
     def on_close(self):
         DEBUG("binary WebSocket closed")
 
+
+
+class WV_ViewServer(object):
+    def __init__(self, handler, fname=None):
+        self.wv = WV_Wrapper()
+        self.buf = self.wv.get_bufflen()*'\0'
+        self.handler = handler  # need this to send the msgs
+        self.geometry_file = fname
+
     def send_binary_data(self, wsi, buf, ibuf):
         try:
-            DEBUG("bufflen = %d" % len(buf))
             dat = msgpack.packb(buf, encoding=None)
-            #dat = buf
-            #DEBUG(" orig ** %s **" % [ord(c) for c in buf[:100]])
-            #DEBUG(" mp ** %s **" % [ord(c) for c in dat[:100]])
-
-            self._sent.append(buf)
-            DEBUG("sending %d bytes (before packing)" % len(buf))
-            self.write_message(dat, binary=True)
+            self.handler.write_message(dat, binary=True)
         except Exception as err:
             ERROR("Exception in send_binary_data:", err)
             return -1
@@ -117,11 +132,23 @@ class WSBinaryHandler(BaseWSHandler):
 
         self.wv.finish_sends()
 
+    def on_message(self, message):
+        DEBUG("binary ws got message: %s" % [ord(c) for c in message])
 
-class SimpleWSTextHandler(WSTextHandler):
-    pass
+    def on_close(self):
+        DEBUG("binary WebSocket closed")
 
-class SimpleWSBinaryHandler(WSBinaryHandler):
+    def open(self):
+        DEBUG("binary WebSocket opened. addr=%d" % id(self))
+        DEBUG("fname = %s" % self.geometry_file)
+        try:
+            self.create_geom()
+            self.send_geometry(first=True)
+        except Exception as err:
+            ERROR('Exception: %s' % traceback.format_exc())
+
+
+class CubeViewServer(WV_ViewServer):
 
     def create_geom(self):
 
@@ -137,37 +164,12 @@ class SimpleWSBinaryHandler(WSBinaryHandler):
         self.wv.createBox("Box$1", WV_ON|WV_SHADING|WV_ORIENTATION, [0.,0.,0.])
 
 
-# create handlers for pygem geometry only if pygem_diamond package is installed
+# create view server for pygem geometry only if pygem_diamond package is installed
 try:
     from pygem_diamond import gem
     from pygem_diamond.pygem import GEMParametricGeometry
 
-    class GEMWSTextHandler(WSTextHandler):
-        def on_message(self, message):
-            pass
-            #if message.startswith('identify;'):
-            #    self.write_message('identify:wvserver')
-            # elif message.startswith('getPmtrs;'):
-            #     pass
-            # elif message.startswith('setPmtr'):
-            #     pass
-            # elif message.startswith('getBrchs;'):
-            #     pass
-            # elif message.startswith('toglBrch;'):
-            #     pass
-            # elif message.startswith('build;'):
-            #     pass
-            # elif message.startswith('save'):
-            #     pass
-
-
-    class GEMWSBinaryHandler(WSBinaryHandler):
-        def initialize(self, options):
-            try:
-                super(GEMWSBinaryHandler, self).initialize()
-                self.geometry_file = options.geometry_file
-            except Exception as err:
-                ERROR('Exception: %s' % traceback.format_exc())
+    class GEMViewServer(WV_ViewServer):
 
         def create_geom(self):
             DEBUG("create_geom")
@@ -189,21 +191,10 @@ try:
             geom.get_visualization_data(self.wv, angle=15., relSide=.02, relSag=.001)
 
 except ImportError:
-    GEMWSBinaryHandler = None
-    GEMWSTextHandler = None
+    GEMViewServer = _undefined_
 
-from pyV3D.pyV3D import STLGeometryObject
 
-class STLWSTextHandler(WSTextHandler):
-    pass
-
-class STLWSBinaryHandler(WSBinaryHandler):
-        def initialize(self, options):
-            try:
-                super(STLWSBinaryHandler, self).initialize()
-                self.geometry_file = options.geometry_file
-            except Exception as err:
-                ERROR('Exception: %s' % traceback.format_exc())
+class STLViewServer(WV_ViewServer):
 
         def create_geom(self):
             DEBUG("create_geom")
@@ -222,47 +213,56 @@ class STLWSBinaryHandler(WSBinaryHandler):
             geom.get_visualization_data(self.wv, angle=15., 
                                         relSide=.02, relSag=.001)
 
-try:
-    from PAM.configurations.pyv3d import GeoMACHParametricGeometry
+# try:
+#     from PAM.configurations.pyv3d import GeoMACHParametricGeometry
 
-    class GeoMACHWSTextHandler(WSTextHandler):
-        def on_message(self, message):
-            pass
+#     class GeoMACHWSTextHandler(WSTextHandler):
+#         def on_message(self, message):
+#             pass
 
-    class GeoMACHWSBinaryHandler(WSBinaryHandler):
-        def initialize(self, options):
-            try:
-                super(GeoMACHWSBinaryHandler, self).initialize()
-                self.modpath = options.geometry_file
-            except Exception as err:
-                ERROR('Exception: %s' % traceback.format_exc())
+#     class GeoMACHWSBinaryHandler(WSBinaryHandler):
+#         def initialize(self, options):
+#             try:
+#                 super(GeoMACHWSBinaryHandler, self).initialize()
+#                 self.modpath = options.geometry_file
+#             except Exception as err:
+#                 ERROR('Exception: %s' % traceback.format_exc())
 
-        def create_geom(self):
-            DEBUG("create_geom")
-            eye    = array([0.0, 0.0, 7.0], dtype=float32)
-            center = array([0.0, 0.0, 0.0], dtype=float32)
-            up     = array([0.0, 1.0, 0.0], dtype=float32)
-            fov   = 30.0
-            zNear = 1.0
-            zFar  = 10.0
+#         def create_geom(self):
+#             DEBUG("create_geom")
+#             eye    = array([0.0, 0.0, 7.0], dtype=float32)
+#             center = array([0.0, 0.0, 0.0], dtype=float32)
+#             up     = array([0.0, 1.0, 0.0], dtype=float32)
+#             fov   = 30.0
+#             zNear = 1.0
+#             zFar  = 10.0
 
-            bias  = 1
-            self.wv.createContext(bias, fov, zNear, zFar, eye, center, up)
+#             bias  = 1
+#             self.wv.createContext(bias, fov, zNear, zFar, eye, center, up)
 
-            self.my_param_geom = GeoMACHParametricGeometry(self.modpath)
-            geom = self.my_param_geom.get_geometry()
-            if geom is None:
-                raise RuntimeError("can't get Geometry object")
-            geom.get_visualization_data(self.wv)
-except ImportError:
-    GeoMACHWSBinaryHandler = None
-    GeoMACHWSTextHandler = None
+#             self.my_param_geom = GeoMACHParametricGeometry(self.modpath)
+#             geom = self.my_param_geom.get_geometry()
+#             if geom is None:
+#                 raise RuntimeError("can't get Geometry object")
+#             geom.get_visualization_data(self.wv)
+# except ImportError:
+#     GeoMACHViewServer = _undefined_
 
+
+# mapping of file extension (without the '.') to corresponding viewer class and package
+VIEWERS = {
+    'csm': (GEMViewServer, 'pygem_diamond'),
+    'stl': (STLViewServer, 'pyV3D'),
+    #'geo': (GeoMACHViewServer, 'PAM'),
+    None: (CubeViewServer, 'pyV3D'),
+}  
+
+_viewdir = '.'
 
 def main():
     ''' Process command line arguments and run.
     '''
-    global DEBUG
+    global DEBUG, _viewdir
 
     textargs = {}
     binargs = {}
@@ -273,38 +273,15 @@ def main():
     if options.debug:
         DEBUG = ERROR
 
-    if options.geometry_file is None: # just draw the cube
-        print 'No geometry file given, serving simple cube...'
-        binaryhandler = SimpleWSBinaryHandler
-        texthandler = SimpleWSTextHandler
-    elif options.geometry_file.lower().endswith('.csm'):
-        if GEMWSBinaryHandler is None:
-            raise RuntimeError("viewing opencsm files requires the pygem_diamond package")
-        else:
-            binaryhandler = GEMWSBinaryHandler
-            binargs = { 'options': options }
-            texthandler = GEMWSTextHandler
-    elif options.geometry_file.lower().endswith('.stl'):
-        if STLWSBinaryHandler is None:
-            raise RuntimeError("something is messed up. Contact Bret Naylor.")
-        else:
-            binaryhandler = STLWSBinaryHandler
-            binargs = { 'options': options }
-            texthandler = STLWSTextHandler
-    elif '.' in options.geometry_file:
-        if GeoMACHWSBinaryHandler is None:
-            raise RuntimeError("viewing geomach files requires the GeoMACH package")
-        binaryhandler = GeoMACHWSBinaryHandler
-        binargs = { 'options': options }
-        texthandler = GeoMACHWSTextHandler
-    else:
-        raise RuntimeError("don't know how to read geometry file '%s'. unsupported format" % 
-                           os.path.basename(options.geometry_file))
+    _viewdir = os.path.expanduser(os.path.abspath(options.viewdir))
+    if not os.path.isdir(_viewdir):
+        sys.stderr.write("view directory '%s' does not exist.\n" % _viewdir)
+        sys.exit(-1)
 
     handlers = [
         web.url(r'/',                web.RedirectHandler, {'url': '/index.html', 'permanent': False}),    
-        web.url(r'/ws/text',         texthandler,   textargs),
-        web.url(r'/ws/binary',       binaryhandler, binargs),
+        web.url(r'/ws/text',         WSTextHandler),
+        web.url(r'/ws/binary/(.*)',  WSBinaryHandler),
         web.url(r'/(.*)',            web.StaticFileHandler, {'path': os.path.join(APP_DIR,'wvclient')}),
     ]
 

@@ -54,22 +54,19 @@ function wsGpOnMessage(evt)
   var Uint8View = new Uint8Array(evt.data);
   var msg, newbuf, dat;
   var old = msgpack.use_utf8
-  logger("old=");
-  logger(old);
   msgpack.use_utf8 = 0  // turn off utf8 decoding
   msg = msgpack.unpack(Uint8View);
   msgpack.use_utf8 = old
 
   newbuf = new ArrayBuffer(msg.length);
   dat = new Uint8Array(newbuf);
+  // TODO: see if there's a faster way to convert str to Uint8Array
   for(var i=0,j=msg.length;i<j;++i) {
      dat[i] = msg.charCodeAt(i);
   }
   logger(" Gprim-binary WebSocket getMessage: " + evt.type + 
       "  -- bytelength = " + msg.length); 
-      //"  -- bytelength = " + evt.data.byteLength); 
  
-  g.socketGp.send(msg);
   g.messageQ.push(newbuf);
   //g.messageQ.push(evt.data);
 }
@@ -84,15 +81,16 @@ function wsGpOnError(evt)
 
 //
 // Init Web Socket interface
-function getSockets(wsURLp, srv)
+function getSockets(wsURLp, fname)
 {
   var ws_ctor = window['MozWebSocket'] ? window['MozWebSocket'] : window['WebSocket'];
   var socketGp, socketUT;
 
   g.messageQ         = [];              // a place to put the binary messages
   
-  if (srv===1) { // connect to wvserver (two different websocket handlers)
-      socketGp = new ws_ctor(wsURLp+'/ws/binary'); 
+  if (typeof fname === "string") { // connect to wvserver (two different websocket handlers)
+      //socketGp = new ws_ctor(wsURLp+'/ws/binary'); 
+      socketGp = new ws_ctor(wsURLp+'/ws/binary/'+fname); 
       socketUt = new ws_ctor(wsURLp+'/ws/text'); 
   }
   else {  // one websocket handler, two subprotocols
@@ -120,7 +118,7 @@ function convert2string(array)
 {
   var string = "";
 
-  for (var i = 0; i < array.length; i++)
+  for (var i = 0, j=array.length; i < j; i++)
   {
     if (array[i] == 0) break;
     string += String.fromCharCode(array[i]);

@@ -51,17 +51,22 @@ function wsGpOnClose(evt)
 
 function wsGpOnMessage(evt)
 {
- 
   var Uint8View = new Uint8Array(evt.data);
+  logger("data =");
+  logger(Uint8View);
+  var msg = msgpack.unpack(Uint8View);
+  var newbuf = new ArrayBuffer(msg.length);
+  var dat = new Uint8Array(newbuf);
+  for(var i=0,j=msg.length;i<j;++i) {
+     dat[i] = msg.charCodeAt(i);
+  }
   logger(" Gprim-binary WebSocket getMessage: " + evt.type + 
-      "  -- bytelength = " + evt.data.byteLength); 
-  logger("                       end = " + Uint8View[evt.data.byteLength-1]);
+      "  -- bytelength = " + msg.length); 
+      //"  -- bytelength = " + evt.data.byteLength); 
  
-/*
-  g.messageQ.push(evt.data.slice(0));
-  delete evt.data;
- */
-  g.messageQ.push(evt.data);
+  g.socketGp.send(msg);
+  g.messageQ.push(newbuf);
+  //g.messageQ.push(evt.data);
 }
 
 

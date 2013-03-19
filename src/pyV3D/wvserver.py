@@ -3,6 +3,7 @@ import sys
 import traceback
 
 from numpy import array, float32, float64, int32, uint8
+import msgpack
 
 from tornado import httpserver, web, escape, ioloop, websocket
 from tornado.web import RequestHandler, StaticFileHandler
@@ -58,6 +59,8 @@ class WSBinaryHandler(BaseWSHandler):
     def initialize(self):
         self.wv = WV_Wrapper()
         self.buf = self.wv.get_bufflen()*'\0'
+        self._sent = []
+        self._received = []
 
     def open(self):
         DEBUG("binary WebSocket opened")
@@ -68,14 +71,36 @@ class WSBinaryHandler(BaseWSHandler):
             ERROR('Exception: %s' % traceback.format_exc())
 
     def on_message(self, message):
-        DEBUG("binary ws got message: %s" % message)
+        #DEBUG("binary ws got message: %s" % message)
+        self._received.append(message)
+        s = self._sent[len(self._received)-1]
+        DEBUG("sent len = %d, type=%s" % (len(s), type(s)))
+        DEBUG("received len = %d, type=%s" % (len(message), type(message)))
+        if len(s) == len(message):
+            for i in range(len(s)):
+                if ord(s[i]) != ord(message[i]):
+                    DEBUG("[%d]:  s: %d  !=  r: %d" % (i,ord(s[i]),ord(message[i])))
+                    break
+            else:
+                DEBUG("match!")
+        with open("raw.out", "ab") as f:
+            f.write("%s\n" % [ord(c) for c in message])
+
 
     def on_close(self):
         DEBUG("binary WebSocket closed")
 
     def send_binary_data(self, wsi, buf, ibuf):
         try:
-            self.write_message(buf, binary=True)
+            DEBUG("bufflen = %d" % len(buf))
+            dat = msgpack.packb(buf, encoding=None)
+            #dat = buf
+            #DEBUG(" orig ** %s **" % [ord(c) for c in buf[:100]])
+            #DEBUG(" mp ** %s **" % [ord(c) for c in dat[:100]])
+
+            self._sent.append(buf)
+            DEBUG("sending %d bytes (before packing)" % len(buf))
+            self.write_message(dat, binary=True)
         except Exception as err:
             ERROR("Exception in send_binary_data:", err)
             return -1

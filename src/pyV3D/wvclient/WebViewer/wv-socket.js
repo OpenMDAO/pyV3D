@@ -52,11 +52,16 @@ function wsGpOnClose(evt)
 function wsGpOnMessage(evt)
 {
   var Uint8View = new Uint8Array(evt.data);
-  logger("data =");
-  logger(Uint8View);
-  var msg = msgpack.unpack(Uint8View);
-  var newbuf = new ArrayBuffer(msg.length);
-  var dat = new Uint8Array(newbuf);
+  var msg, newbuf, dat;
+  var old = msgpack.use_utf8
+  logger("old=");
+  logger(old);
+  msgpack.use_utf8 = 0  // turn off utf8 decoding
+  msg = msgpack.unpack(Uint8View);
+  msgpack.use_utf8 = old
+
+  newbuf = new ArrayBuffer(msg.length);
+  dat = new Uint8Array(newbuf);
   for(var i=0,j=msg.length;i<j;++i) {
      dat[i] = msg.charCodeAt(i);
   }

@@ -15,7 +15,9 @@ globalScope.msgpack = {
                                 //  [2][ByteArray to mix] msgpack.unpack([...]) -> {}
     worker:     "msgpack.js",   // msgpack.worker - WebWorkers script filename
     upload:     msgpackupload,  // msgpack.upload(url:String, option:Hash, callback:Function)
-    download:   msgpackdownload // msgpack.download(url:String, option:Hash, callback:Function)
+    download:   msgpackdownload, // msgpack.download(url:String, option:Hash, callback:Function)
+    use_utf8:   1  // added to prevent binary buffs from being interpreted as strings
+                   // - set to 0 to treat strings as binary buffers, i.e. skip encoding/decoding
 };
 
 var _ie         = /MSIE/.test(navigator.userAgent),
@@ -31,7 +33,6 @@ var _ie         = /MSIE/.test(navigator.userAgent),
                   }),
     _toString   = String.fromCharCode, // CharCode/ByteArray to String
     _MAX_DEPTH  = 512;
-var _use_encoding_for_raw = 0;
 
 // for WebWorkers Code Block
 self.importScripts && (onmessage = function(event) {
@@ -347,7 +348,7 @@ function decode() { // @return Mix:
     case 0xdb:  num +=  buf[++_idx] * 0x1000000 + (buf[++_idx] << 16);
     case 0xda:  num += (buf[++_idx] << 8)       +  buf[++_idx];
     case 0xa0:  
-         if (_use_encoding_for_raw) {  // utf8.decode
+         if (msgpack.use_utf8) {  // utf8.decode
                 console.debug("utf8 decode");
                 for (ary = [], i = _idx, iz = i + num; i < iz; ) {
                     c = buf[++i]; // lead byte

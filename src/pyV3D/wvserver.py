@@ -3,7 +3,7 @@ import sys
 import traceback
 
 from numpy import array, float32, float64, int32, uint8
-import msgpack
+#import msgpack
 
 from tornado import httpserver, web, escape, ioloop, websocket
 from tornado.web import RequestHandler, StaticFileHandler
@@ -56,15 +56,35 @@ class WSTextHandler(BaseWSHandler):
     def on_message(self, message):
         DEBUG("text Websocket received message: %s" % message)
 
-class WSBinaryHandler(BaseWSHandler):
-    def _execute(self, transforms, *args, **kwargs):
-        global VIEWERS, _viewdir
 
+class WSBinaryHandler(BaseWSHandler):
+
+    def _execute(self, transforms, *args, **kwargs):
         try:
-            self.view_server = geometry_file = klass = None
+            self.view_server = self.geometry_file = None
             if len(args) > 0 and args[0]:
-                geometry_file = os.path.join(_viewdir, args[0].replace('..', ''))
-                parts = geometry_file.rsplit('.', 1)
+                self.geometry_file = args[0].replace('..', '')
+            args = args[1:]
+            super(WSBinaryHandler, self)._execute(transforms, *args, **kwargs)
+        except Exception as err:
+            DEBUG("%s" % str(err))
+
+    def open(self):
+        global VIEWERS, _viewdir
+        try:
+            if self._proto is None:
+                DEBUG("no proto")
+                return
+
+            DEBUG("_proto = %s" % self._proto)
+            if '-txt-' in self._proto:
+                DEBUG("skipping due to proto")
+                return
+
+            klass = None
+            if self.geometry_file:
+                self.geometry_file = os.path.join(_viewdir, self.geometry_file)
+                parts = self.geometry_file.rsplit('.', 1)
                 if len(parts) > 1:
                     ext = '.'+parts[1]
                     try:
@@ -77,16 +97,13 @@ class WSBinaryHandler(BaseWSHandler):
                 klass = CubeViewServer
 
             if klass is _undefined_:
-                raise RuntimeError("no viewer loaded for extension '%s'. Most likely, package '%s' failed to load" % (ext,pkg))
+                raise RuntimeError("no viewer loaded for file extension '%s'. Most likely, package '%s' failed to load" % (ext,pkg))
             if klass:
-                self.view_server = klass(handler=self, fname=geometry_file)
-            args = args[1:]
-            super(WSBinaryHandler, self)._execute(transforms, *args, **kwargs)
+                self.view_server = klass(handler=self, fname=self.geometry_file)
         except Exception as err:
             DEBUG("%s" % str(err))
 
-    def open(self):
-        if self.view_server is None:
+        if klass is None:
             self.send_error(404)
             return
         try:
@@ -103,7 +120,19 @@ class WSBinaryHandler(BaseWSHandler):
     def on_close(self):
         DEBUG("binary WebSocket closed")
 
-
+    def select_subprotocol(self, subprotocols):
+        try:
+            protocols = ['pyv3d-bin-1.0', 'pyv3d-txt-1.0']
+            for p in protocols:
+                if p in subprotocols:
+                    self._proto = p
+                    DEBUG("matched subproto %s" % p)
+                    return p
+            DEBUG("returning None for subproto choices: %s" % subprotocols)
+        except Exception as err:
+            DEBUG("%s" % err)
+        self._proto = None
+        return None
 
 class WV_ViewServer(object):
     def __init__(self, handler, fname=None):
@@ -114,8 +143,9 @@ class WV_ViewServer(object):
 
     def send_binary_data(self, wsi, buf, ibuf):
         try:
-            dat = msgpack.packb(buf, encoding=None)
-            self.handler.write_message(dat, binary=True)
+            #dat = msgpack.packb(buf, encoding=None)
+            #self.handler.write_message(dat, binary=True)
+            self.handler.write_message(buf, binary=True)
         except Exception as err:
             ERROR("Exception in send_binary_data:", err)
             return -1
@@ -280,8 +310,9 @@ def main():
 
     handlers = [
         web.url(r'/',                web.RedirectHandler, {'url': '/index.html', 'permanent': False}),    
-        web.url(r'/ws/text',         WSTextHandler),
-        web.url(r'/ws/binary/(.*)',  WSBinaryHandler),
+        #web.url(r'/ws/text',         WSTextHandler),
+        #web.url(r'/ws/binary/(.*)',  WSBinaryHandler),
+        web.url(r'/viewers/(.*)',    WSBinaryHandler),
         web.url(r'/(.*)',            web.StaticFileHandler, {'path': os.path.join(APP_DIR,'wvclient')}),
     ]
 

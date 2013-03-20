@@ -51,16 +51,23 @@ function wsGpOnClose(evt)
 
 function wsGpOnMessage(evt)
 {
- 
-  var Uint8View = new Uint8Array(evt.data);
+  //var Uint8View = new Uint8Array(evt.data);
+  //var msg, newbuf, dat;
+  //var old = msgpack.use_utf8
+  //msgpack.use_utf8 = 0  // turn off utf8 decoding
+  //msg = msgpack.unpack(Uint8View);
+  //msgpack.use_utf8 = old
+
+  //newbuf = new ArrayBuffer(msg.length);
+  //dat = new Uint8Array(newbuf);
+  //// TODO: see if there's a faster way to convert str to Uint8Array
+  //for(var i=0,j=msg.length;i<j;++i) {
+  //   dat[i] = msg.charCodeAt(i);
+  //}
   logger(" Gprim-binary WebSocket getMessage: " + evt.type + 
-      "  -- bytelength = " + evt.data.byteLength); 
-  logger("                       end = " + Uint8View[evt.data.byteLength-1]);
+      "  -- bytelength = " + evt.data.length); 
  
-/*
-  g.messageQ.push(evt.data.slice(0));
-  delete evt.data;
- */
+  //g.messageQ.push(newbuf);
   g.messageQ.push(evt.data);
 }
 
@@ -74,16 +81,18 @@ function wsGpOnError(evt)
 
 //
 // Init Web Socket interface
-function getSockets(wsURLp, srv)
+function getSockets(wsURLp, fname)
 {
   var ws_ctor = window['MozWebSocket'] ? window['MozWebSocket'] : window['WebSocket'];
   var socketGp, socketUT;
 
-  if (srv===1) { // connect to wvserver (two different websocket handlers)
-      socketGp = new ws_ctor(wsURLp+'/ws/binary'); 
-      socketUt = new ws_ctor(wsURLp+'/ws/text'); 
+  g.messageQ = [];              // a place to put the binary messages
+  
+  if (typeof fname === "string") { // use new protocol names
+      socketGp = new ws_ctor(wsURLp+'/viewers/'+fname, 'pyv3d-bin-1.0'); 
+      socketUt = new ws_ctor(wsURLp+'/viewers/'+fname, 'pyv3d-txt-1.0'); 
   }
-  else {  // one websocket handler, two subprotocols
+  else {  // use old protocol names
      socketGp = new ws_ctor(wsURLp, "gprim-binary-protocol");
      socketUt = new ws_ctor(wsURLp, "ui-text-protocol");
   }
@@ -99,8 +108,6 @@ function getSockets(wsURLp, srv)
   socketUt.onmessage = function(evt) { wsUtOnMessage(evt) };
   socketUt.onerror   = function(evt) { wsUtOnError(evt)   };
   g.socketUt         = socketUt;
-  
-  g.messageQ         = [];              // a place to put the binary messages
 }
 
 
@@ -110,7 +117,7 @@ function convert2string(array)
 {
   var string = "";
 
-  for (var i = 0; i < array.length; i++)
+  for (var i = 0, j=array.length; i < j; i++)
   {
     if (array[i] == 0) break;
     string += String.fromCharCode(array[i]);

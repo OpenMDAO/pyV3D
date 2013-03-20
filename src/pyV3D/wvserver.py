@@ -57,7 +57,7 @@ class WSTextHandler(BaseWSHandler):
         DEBUG("text Websocket received message: %s" % message)
 
 
-class WSBinaryHandler(BaseWSHandler):
+class WSViewerHandler(BaseWSHandler):
 
     def _execute(self, transforms, *args, **kwargs):
         try:
@@ -65,7 +65,7 @@ class WSBinaryHandler(BaseWSHandler):
             if len(args) > 0 and args[0]:
                 self.geometry_file = args[0].replace('..', '')
             args = args[1:]
-            super(WSBinaryHandler, self)._execute(transforms, *args, **kwargs)
+            super(WSViewerHandler, self)._execute(transforms, *args, **kwargs)
         except Exception as err:
             DEBUG("%s" % str(err))
 
@@ -246,18 +246,7 @@ class STLViewServer(WV_ViewServer):
 # try:
 #     from PAM.configurations.pyv3d import GeoMACHParametricGeometry
 
-#     class GeoMACHWSTextHandler(WSTextHandler):
-#         def on_message(self, message):
-#             pass
-
-#     class GeoMACHWSBinaryHandler(WSBinaryHandler):
-#         def initialize(self, options):
-#             try:
-#                 super(GeoMACHWSBinaryHandler, self).initialize()
-#                 self.modpath = options.geometry_file
-#             except Exception as err:
-#                 ERROR('Exception: %s' % traceback.format_exc())
-
+#     class GeoMACHViewServer(WV_ViewServer):
 #         def create_geom(self):
 #             DEBUG("create_geom")
 #             eye    = array([0.0, 0.0, 7.0], dtype=float32)
@@ -294,9 +283,6 @@ def main():
     '''
     global DEBUG, _viewdir
 
-    textargs = {}
-    binargs = {}
-
     parser = get_argument_parser()
     options, args = parser.parse_known_args()
 
@@ -310,9 +296,7 @@ def main():
 
     handlers = [
         web.url(r'/',                web.RedirectHandler, {'url': '/index.html', 'permanent': False}),    
-        #web.url(r'/ws/text',         WSTextHandler),
-        #web.url(r'/ws/binary/(.*)',  WSBinaryHandler),
-        web.url(r'/viewers/(.*)',    WSBinaryHandler),
+        web.url(r'/viewers/(.*)',    WSViewerHandler),
         web.url(r'/(.*)',            web.StaticFileHandler, {'path': os.path.join(APP_DIR,'wvclient')}),
     ]
 

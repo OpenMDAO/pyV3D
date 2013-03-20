@@ -27,8 +27,9 @@ def DEBUG(*args):
 
 class WSViewerHandler(websocket.WebSocketHandler):
 
-    def initialize(self, view_servers, view_dir, viewer_classes):
-        self.view_servers = view_servers
+    view_servers = {}
+
+    def initialize(self, view_dir, viewer_classes):
         self.view_dir = view_dir
         self.viewer_classes = viewer_classes
 
@@ -56,15 +57,16 @@ class WSViewerHandler(websocket.WebSocketHandler):
                     if len(parts) > 1:
                         try:
                             klass, pkg = self.viewer_classes[parts[1]]
+                            if klass is _undefined_:
+                                raise RuntimeError("no viewer loaded for file extension '.%s'. Make sure package '%s' has been installed." % (parts[1],pkg))
                         except KeyError:
                             pass
-                        if klass is _undefined_:
-                            raise RuntimeError("no viewer loaded for file extension '.%s'. Make sure package '%s' has been installed." % (parts[1],pkg))
                 else:
-                    klass = CubeViewServer
+                    klass = CubeViewHandler
 
                 if klass:
                     self.view_server = klass(handler=self, fname=self.geometry_file)
+                    self.view_servers[self.geometry_file] = self.view_server
 
                 if klass is None:
                     self.send_error(404)
@@ -97,7 +99,7 @@ class WSViewerHandler(websocket.WebSocketHandler):
         self._proto = None
         return None
 
-class WV_ViewServer(object):
+class WV_ViewHandler(object):
     def __init__(self, handler, fname=None):
         self.wv = WV_Wrapper()
         self.buf = self.wv.get_bufflen()*'\0'
@@ -141,7 +143,7 @@ class WV_ViewServer(object):
             ERROR('Exception: %s' % traceback.format_exc())
 
 
-class CubeViewServer(WV_ViewServer):
+class CubeViewHandler(WV_ViewHandler):
 
     def create_geom(self):
 
@@ -162,7 +164,7 @@ try:
     from pygem_diamond import gem
     from pygem_diamond.pygem import GEMParametricGeometry
 
-    class GEMViewServer(WV_ViewServer):
+    class GEMViewHandler(WV_ViewHandler):
 
         def create_geom(self):
             DEBUG("create_geom")
@@ -184,10 +186,10 @@ try:
             geom.get_visualization_data(self.wv, angle=15., relSide=.02, relSag=.001)
 
 except ImportError:
-    GEMViewServer = _undefined_
+    GEMViewHandler = _undefined_
 
 
-class STLViewServer(WV_ViewServer):
+class STLViewHandler(WV_ViewHandler):
 
         def create_geom(self):
             DEBUG("create_geom")
@@ -209,7 +211,7 @@ class STLViewServer(WV_ViewServer):
 # try:
 #     from PAM.configurations.pyv3d import GeoMACHParametricGeometry
 
-#     class GeoMACHViewServer(WV_ViewServer):
+#     class GeoMACHViewHandler(WV_ViewHandler):
 #         def create_geom(self):
 #             DEBUG("create_geom")
 #             eye    = array([0.0, 0.0, 7.0], dtype=float32)
@@ -228,7 +230,7 @@ class STLViewServer(WV_ViewServer):
 #                 raise RuntimeError("can't get Geometry object")
 #             geom.get_visualization_data(self.wv)
 # except ImportError:
-#     GeoMACHViewServer = _undefined_
+#     GeoMACHViewHandler = _undefined_
 
 
 def get_argument_parser():
@@ -251,10 +253,10 @@ def main():
 
     # mapping of file extension (without the '.') to corresponding viewer class and package
     viewer_classes = {
-        'csm': (GEMViewServer, 'pygem_diamond'),
-        'stl': (STLViewServer, 'pyV3D'),
-        #'geo': (GeoMACHViewServer, 'PAM'),
-        None: (CubeViewServer, 'pyV3D'),
+        'csm': (GEMViewHandler, 'pygem_diamond'),
+        'stl': (STLViewHandler, 'pyV3D'),
+        #'geo': (GeoMACHViewHandler, 'PAM'),
+        None: (CubeViewHandler, 'pyV3D'),
     }
 
     # mapping of active view server to filename or object id

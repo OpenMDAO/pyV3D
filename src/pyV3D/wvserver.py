@@ -24,40 +24,17 @@ def ERROR(*args):
 def DEBUG(*args):
     pass
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def get_argument_parser():
-    ''' create a parser for command line arguments
-    '''
-    parser = ArgumentParser(description='launch the test server')
-    parser.add_argument('-p', '--port', type=int, dest='port', default=8000,
-                        help='port to run server on')
-    parser.add_argument("-d","--debug", action="store_true", dest='debug',
-                        help="turn on debug mode")
-    parser.add_argument('viewdir', nargs='?', default='.',
-                        help='pathname of directory containing files to view')
-    return parser
+class WSViewerHandler(websocket.WebSocketHandler):
 
+    def initialize(self, view_servers, view_dir, viewer_classes):
+        self.view_servers = view_servers
+        self.view_dir = view_dir
+        self.viewer_classes = viewer_classes
 
-class BaseWSHandler(websocket.WebSocketHandler):
     def _handle_request_exception(self, exc):
         ERROR("Unhandled exception: %s" % str(exc))
-        super(BaseWSHandler, self)._handle_request_exception(exc)
-
-
-class WSTextHandler(BaseWSHandler):
-
-    def open(self):
-        DEBUG("text WebSocket opened")
-
-    def on_close(self):
-        DEBUG("text WebSocket closed")
-
-    def on_message(self, message):
-        DEBUG("text Websocket received message: %s" % message)
-
-
-class WSViewerHandler(BaseWSHandler):
+        super(WSViewerHandler, self)._handle_request_exception(exc)
 
     def _execute(self, transforms, *args, **kwargs):
         try:
@@ -70,44 +47,30 @@ class WSViewerHandler(BaseWSHandler):
             DEBUG("%s" % str(err))
 
     def open(self):
-        global VIEWERS, _viewdir
         try:
-            if self._proto is None:
-                DEBUG("no proto")
-                return
-
-            DEBUG("_proto = %s" % self._proto)
-            if '-txt-' in self._proto:
-                DEBUG("skipping due to proto")
-                return
-
-            klass = None
-            if self.geometry_file:
-                self.geometry_file = os.path.join(_viewdir, self.geometry_file)
-                parts = self.geometry_file.rsplit('.', 1)
-                if len(parts) > 1:
-                    ext = '.'+parts[1]
-                    try:
-                        klass, pkg = VIEWERS[parts[1]]
-                    except KeyError:
-                        pass
+            if self._proto == 'pyv3d-bin-1.0':
+                klass = None
+                if self.geometry_file:
+                    self.geometry_file = os.path.join(self.view_dir, self.geometry_file)
+                    parts = self.geometry_file.rsplit('.', 1)
+                    if len(parts) > 1:
+                        try:
+                            klass, pkg = self.viewer_classes[parts[1]]
+                        except KeyError:
+                            pass
+                        if klass is _undefined_:
+                            raise RuntimeError("no viewer loaded for file extension '.%s'. Make sure package '%s' has been installed." % (parts[1],pkg))
                 else:
-                    ext = 'None'
-            else:
-                klass = CubeViewServer
+                    klass = CubeViewServer
 
-            if klass is _undefined_:
-                raise RuntimeError("no viewer loaded for file extension '%s'. Most likely, package '%s' failed to load" % (ext,pkg))
-            if klass:
-                self.view_server = klass(handler=self, fname=self.geometry_file)
-        except Exception as err:
-            DEBUG("%s" % str(err))
+                if klass:
+                    self.view_server = klass(handler=self, fname=self.geometry_file)
 
-        if klass is None:
-            self.send_error(404)
-            return
-        try:
-            self.view_server.open()
+                if klass is None:
+                    self.send_error(404)
+                    return
+
+                self.view_server.open()
         except Exception as err:
             ERROR('Exception: %s' % traceback.format_exc())
 
@@ -268,20 +231,34 @@ class STLViewServer(WV_ViewServer):
 #     GeoMACHViewServer = _undefined_
 
 
-# mapping of file extension (without the '.') to corresponding viewer class and package
-VIEWERS = {
-    'csm': (GEMViewServer, 'pygem_diamond'),
-    'stl': (STLViewServer, 'pyV3D'),
-    #'geo': (GeoMACHViewServer, 'PAM'),
-    None: (CubeViewServer, 'pyV3D'),
-}  
+def get_argument_parser():
+    ''' create a parser for command line arguments
+    '''
+    parser = ArgumentParser(description='launch the test server')
+    parser.add_argument('-p', '--port', type=int, dest='port', default=8000,
+                        help='port to run server on')
+    parser.add_argument("-d","--debug", action="store_true", dest='debug',
+                        help="turn on debug mode")
+    parser.add_argument('viewdir', nargs='?', default='.',
+                        help='pathname of directory containing files to view')
+    return parser
 
-_viewdir = '.'
 
 def main():
     ''' Process command line arguments and run.
     '''
-    global DEBUG, _viewdir
+    global DEBUG
+
+    # mapping of file extension (without the '.') to corresponding viewer class and package
+    viewer_classes = {
+        'csm': (GEMViewServer, 'pygem_diamond'),
+        'stl': (STLViewServer, 'pyV3D'),
+        #'geo': (GeoMACHViewServer, 'PAM'),
+        None: (CubeViewServer, 'pyV3D'),
+    }
+
+    # mapping of active view server to filename or object id
+    view_servers = {}
 
     parser = get_argument_parser()
     options, args = parser.parse_known_args()
@@ -289,14 +266,22 @@ def main():
     if options.debug:
         DEBUG = ERROR
 
-    _viewdir = os.path.expanduser(os.path.abspath(options.viewdir))
-    if not os.path.isdir(_viewdir):
-        sys.stderr.write("view directory '%s' does not exist.\n" % _viewdir)
+    viewdir = os.path.expanduser(os.path.abspath(options.viewdir))
+    if not os.path.isdir(viewdir):
+        sys.stderr.write("view directory '%s' does not exist.\n" % viewdir)
         sys.exit(-1)
+
+    handler_data = {
+       'view_servers': view_servers,
+       'view_dir': viewdir,
+       'viewer_classes': viewer_classes,
+    }
+
+    APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
     handlers = [
         web.url(r'/',                web.RedirectHandler, {'url': '/index.html', 'permanent': False}),    
-        web.url(r'/viewers/(.*)',    WSViewerHandler),
+        web.url(r'/viewers/(.*)',    WSViewerHandler, handler_data),
         web.url(r'/(.*)',            web.StaticFileHandler, {'path': os.path.join(APP_DIR,'wvclient')}),
     ]
 

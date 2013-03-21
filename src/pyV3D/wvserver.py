@@ -27,7 +27,7 @@ def DEBUG(*args):
 
 class WSViewerHandler(websocket.WebSocketHandler):
 
-    view_servers = {}
+    view_handlers = {}
 
     def initialize(self, view_dir, viewer_classes):
         self.view_dir = view_dir
@@ -39,7 +39,7 @@ class WSViewerHandler(websocket.WebSocketHandler):
 
     def _execute(self, transforms, *args, **kwargs):
         try:
-            self.view_server = self.geometry_file = None
+            self.view_handler = self.geometry_file = None
             if len(args) > 0 and args[0]:
                 self.geometry_file = args[0].replace('..', '')
             args = args[1:]
@@ -65,22 +65,22 @@ class WSViewerHandler(websocket.WebSocketHandler):
                     klass = CubeViewHandler
 
                 if klass:
-                    self.view_server = klass(handler=self, fname=self.geometry_file)
-                    self.view_servers[self.geometry_file] = self.view_server
+                    self.view_handler = klass(handler=self, fname=self.geometry_file)
+                    self.view_handlers[self.geometry_file] = self.view_handler
 
                 if klass is None:
                     self.send_error(404)
                     return
 
-                self.view_server.open()
+                self.view_handler.open()
         except Exception as err:
             ERROR('Exception: %s' % traceback.format_exc())
 
     def on_message(self, message):
-        if self.view_server is None:
+        if self.view_handler is None:
             self.send_error(404)
             return
-        self.view_server.on_message(message)
+        self.view_handler.on_message(message)
 
     def on_close(self):
         DEBUG("binary WebSocket closed")
@@ -260,7 +260,7 @@ def main():
     }
 
     # mapping of active view server to filename or object id
-    view_servers = {}
+    view_handlers = {}
 
     parser = get_argument_parser()
     options, args = parser.parse_known_args()
@@ -274,7 +274,7 @@ def main():
         sys.exit(-1)
 
     handler_data = {
-       'view_servers': view_servers,
+       'view_handlers': view_handlers,
        'view_dir': viewdir,
        'viewer_classes': viewer_classes,
     }

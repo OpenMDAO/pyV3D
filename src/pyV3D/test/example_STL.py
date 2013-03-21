@@ -32,7 +32,8 @@ up     = array([0.0, 1.0, 0.0], dtype=float32)
 
 myWV.createContext(0, 30.0, 1.0, 10.0, eye, center, up)
 
-myGeometry = STLGeometryObject("sr22.stl") 
+#myGeometry = STLGeometryObject("sr22.stl") 
+myGeometry = STLGeometryObject("porsche.stl") 
 myGeometry.get_visualization_data(myWV)
 
 buf = 3205696*' '

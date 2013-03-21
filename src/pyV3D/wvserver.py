@@ -259,9 +259,6 @@ def main():
         None: (CubeViewHandler, 'pyV3D'),
     }
 
-    # mapping of active view server to filename or object id
-    view_handlers = {}
-
     parser = get_argument_parser()
     options, args = parser.parse_known_args()
 
@@ -274,7 +271,6 @@ def main():
         sys.exit(-1)
 
     handler_data = {
-       'view_handlers': view_handlers,
        'view_dir': viewdir,
        'viewer_classes': viewer_classes,
     }

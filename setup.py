@@ -28,13 +28,13 @@ if sys.platform == 'win32':
         os.environ['PATH'] = ';'.join(path)
 
 config = Configuration(name='pyV3D')
-config.add_extension('pyV3D',
-                     sources=['src/pyV3D/wv.c', 'src/pyV3D/pyV3D.c'],
+config.add_extension('_pyV3D',
+                     sources=['src/pyV3D/wv.c', 'src/pyV3D/_pyV3D.c'],
                      include_dirs=include_dirs,
                      library_dirs=library_dirs)
 config.add_data_files('LICENSE.txt','README.txt')
 
-kwds = {'install_requires':['numpy', 'tornado'],
+kwds = {'install_requires':['numpy', 'tornado', 'argparse'],
         'author': '',
         'author_email': '',
         'classifiers': ['Intended Audience :: Science/Research',
@@ -42,7 +42,6 @@ kwds = {'install_requires':['numpy', 'tornado'],
         'description': 'Python web viewer for VBOs',
         'download_url': '',
         'include_package_data': True,
-        'install_requires': ['numpy', 'tornado', 'argparse'],
         'keywords': ['openmdao'],
         'license': 'Apache License, Version 2.0',
         'maintainer': 'Kenneth T. Moore',
@@ -54,6 +53,10 @@ kwds = {'install_requires':['numpy', 'tornado'],
         'url': 'https://github.com/OpenMDAO/pyV3D',
         'version': '0.1',
         'zip_safe': False,
+        'entry_points': """
+           [pyv3d.view_handlers]
+           pyV3D.stl.STLViewHandler = pyV3D.stl:STLViewHandler
+        """
        }
 
 kwds.update(config.todict())

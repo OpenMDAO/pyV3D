@@ -36,9 +36,16 @@ class WSHandler(websocket.WebSocketHandler):
 
     def _execute(self, transforms, *args, **kwargs):
         try:
-            self.view_handler = self.geometry_file = None
+            self.view_handler = self.geometry_file = self.inner_class = None
             if len(args) > 0 and args[0]:
-                self.geometry_file = args[0].replace('..', '')
+                # allow for specified filename to be followed by a ':' and an inner class name
+                parts = args[0].rsplit(':',1)
+                if len(parts) > 1:
+                    self.inner_class = parts[1]
+                    farg = parts[0]
+                else:
+                    farg = args[0]
+                self.geometry_file = farg.replace('..', '')
             args = args[1:]
             super(WSHandler, self)._execute(transforms, *args, **kwargs)
         except Exception as err:
@@ -63,7 +70,8 @@ class WSHandler(websocket.WebSocketHandler):
                     klass = CubeViewHandler
 
                 if klass:
-                    self.view_handler = klass(handler=self, fname=self.geometry_file)
+                    self.view_handler = klass(handler=self, fname=self.geometry_file, 
+                                              inner_class=self.inner_class)
                     self.view_handlers[self.geometry_file] = self.view_handler
 
                 if klass is None:
@@ -101,11 +109,12 @@ class WSHandler(websocket.WebSocketHandler):
 
 
 class WV_ViewHandler(object):
-    def __init__(self, handler, fname=None):
+    def __init__(self, handler, fname=None, inner_class=None):
         self.wv = WV_Wrapper()
         self.buf = self.wv.get_bufflen()*'\0'
         self.handler = handler  # need this to send the msgs
         self.geometry_file = fname
+        self.inner_class = inner_class
 
     def send_binary_data(self, wsi, buf, ibuf):
         try:
@@ -168,6 +177,7 @@ def load_view_handlers():
     DEBUG("in load_entry_points()")
     # find all of the installed pyv3d view handlers
     for ep in working_set.iter_entry_points('pyv3d.view_handlers'):
+        DEBUG(str(ep).split()[0])
         try:
             klass = ep.load()
         except Exception as err:

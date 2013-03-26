@@ -56,6 +56,7 @@ kwds = {'install_requires':['numpy', 'tornado', 'argparse'],
         'entry_points': """
            [pyv3d.view_handlers]
            pyV3D.stl.STLViewHandler = pyV3D.stl:STLViewHandler
+           pyV3D.pam.GeoMACHViewHandler = pyV3D.pam:GeoMACHViewHandler
         """
        }
 

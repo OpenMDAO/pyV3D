@@ -168,9 +168,11 @@ def load_view_handlers():
     DEBUG("in load_entry_points()")
     # find all of the installed pyv3d view handlers
     for ep in working_set.iter_entry_points('pyv3d.view_handlers'):
-        DEBUG("entry point: %s" % ep)
-        klass = ep.load()
-        exts = klass.get_file_extensions()
-        for ext in exts:
-            DEBUG("addning %s handler for .%s" % (klass.__name__, ext))
-            WSHandler.viewer_classes.setdefault(ext, []).append(klass)
+        try:
+            klass = ep.load()
+        except Exception as err:
+            ERROR("Entry point %s failed to load: %s" % (str(ep).split()[0], err))
+        else:
+            exts = klass.get_file_extensions()
+            for ext in exts:
+                WSHandler.viewer_classes.setdefault(ext, []).append(klass)

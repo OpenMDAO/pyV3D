@@ -23,33 +23,54 @@ DEBUG = ERROR
 
 class WSHandler(websocket.WebSocketHandler):
 
-    view_handlers = {}
-    viewer_classes = {}
+    subhandlers = {} # map of obj pathname or file pathname to subhandler instances
+    extensions = {}  # map of file extensions to lists of supporting subhandlers
+    protocols = {}   # map of protocols to lists of supporting subhandlers
 
     def initialize(self, view_dir):
-        self.view_dir = view_dir
+        self.view_dir = os.path.abspath(os.path.expanduser(view_dir)
 
     def _handle_request_exception(self, exc):
         ERROR("Unhandled exception: %s" % str(exc))
         super(WSHandler, self)._handle_request_exception(exc)
 
-
     def _execute(self, transforms, *args, **kwargs):
+        self.transforms = transforms
+        self.args = args[:]
+        self.kwargs = kwargs.copy()
+        # try:
+        #     self.view_handler = self.geometry_file = self.inner_class = None
+        #     if len(args) > 0 and args[0]:
+        #         # allow for specified filename to be followed by a ':' and an inner class name
+        #         parts = args[0].rsplit(':',1)
+        #         if len(parts) > 1:
+        #             self.inner_class = parts[1]
+        #             farg = parts[0]
+        #         else:
+        #             farg = args[0]
+        #         farg = os.path.abspath(os.path.expanduser(farg))
+        #         if not farg.startswith(self.view_dir):
+        #             raise RuntimeError("attempted to load a file outside of the view directory")
+        #         self.geometry_file = farg
+        #     args = args[1:]
+        #     super(WSHandler, self)._execute(transforms, *args, **kwargs)
+        # except Exception as err:
+        #     ERROR("%s" % str(err))
+
+    # this is called before open
+    def select_subprotocol(self, subprotocols):
         try:
-            self.view_handler = self.geometry_file = self.inner_class = None
-            if len(args) > 0 and args[0]:
-                # allow for specified filename to be followed by a ':' and an inner class name
-                parts = args[0].rsplit(':',1)
-                if len(parts) > 1:
-                    self.inner_class = parts[1]
-                    farg = parts[0]
-                else:
-                    farg = args[0]
-                self.geometry_file = farg.replace('..', '')
-            args = args[1:]
-            super(WSHandler, self)._execute(transforms, *args, **kwargs)
+            #protocols = ['pyv3d-bin-1.0', 'pyv3d-txt-1.0']
+            for p in subprotocols:
+                if p in self.protocols:
+                    self._proto = p
+                    DEBUG("matched subproto %s" % p)
+                    return p
+            DEBUG("returning None for subproto choices: %s" % subprotocols)
         except Exception as err:
-            ERROR("%s" % str(err))
+            ERROR("%s" % err)
+        self._proto = None
+        return None
 
     def open(self):
         try:
@@ -60,7 +81,7 @@ class WSHandler(websocket.WebSocketHandler):
                     parts = self.geometry_file.rsplit('.', 1)
                     if len(parts) > 1:
                         try:
-                            klasses = self.viewer_classes[parts[1]]
+                            klasses = self.subhandler_classes[parts[1]]
                         except KeyError:
                            raise RuntimeError("no viewer found for file extension '.%s'. " % parts[1])
                         if len(klasses) > 1:
@@ -72,7 +93,7 @@ class WSHandler(websocket.WebSocketHandler):
                 if klass:
                     self.view_handler = klass(handler=self, fname=self.geometry_file, 
                                               inner_class=self.inner_class)
-                    self.view_handlers[self.geometry_file] = self.view_handler
+                    self.subhandlers[self.geometry_file] = self.view_handler
 
                 if klass is None:
                     self.send_error(404)
@@ -93,19 +114,6 @@ class WSHandler(websocket.WebSocketHandler):
     def on_close(self):
         DEBUG("WebSocket closed (proto=%s" % self._proto)
 
-    def select_subprotocol(self, subprotocols):
-        try:
-            protocols = ['pyv3d-bin-1.0', 'pyv3d-txt-1.0']
-            for p in protocols:
-                if p in subprotocols:
-                    self._proto = p
-                    DEBUG("matched subproto %s" % p)
-                    return p
-            DEBUG("returning None for subproto choices: %s" % subprotocols)
-        except Exception as err:
-            ERROR("%s" % err)
-        self._proto = None
-        return None
 
 
 class WV_ViewHandler(object):
@@ -115,6 +123,11 @@ class WV_ViewHandler(object):
         self.handler = handler  # need this to send the msgs
         self.geometry_file = fname
         self.inner_class = inner_class
+
+    @staticmethod
+    def get_protocols():
+        """Returns a list of supported protocols."""
+        return ['pyv3d-bin-1.0', 'pyv3d-txt-1.0']
 
     def send_binary_data(self, wsi, buf, ibuf):
         try:
@@ -173,11 +186,11 @@ class CubeViewHandler(WV_ViewHandler):
         self.wv.createBox("Box$1", WV_ON|WV_SHADING|WV_ORIENTATION, [0.,0.,0.])
 
 
-def load_view_handlers():
-    DEBUG("in load_entry_points()")
+def load_subhandlers():
+    """Loads all entry points in the pyv3d.subhandlers group."""
+
     # find all of the installed pyv3d view handlers
-    for ep in working_set.iter_entry_points('pyv3d.view_handlers'):
-        DEBUG(str(ep).split()[0])
+    for ep in working_set.iter_entry_points('pyv3d.subhandlers'):
         try:
             klass = ep.load()
         except Exception as err:
@@ -185,4 +198,6 @@ def load_view_handlers():
         else:
             exts = klass.get_file_extensions()
             for ext in exts:
-                WSHandler.viewer_classes.setdefault(ext, []).append(klass)
+                WSHandler.subhandler_classes.setdefault(ext, []).append(klass)
+
+

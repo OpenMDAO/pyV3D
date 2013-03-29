@@ -39,7 +39,7 @@ class GeoMACHViewHandler(WV_ViewHandler):
         zNear = 1.0
         zFar  = 10.0
 
-        bias  = 1
+        bias  = 0
         self.wv.createContext(bias, fov, zNear, zFar, eye, center, up)
 
         modpath = get_module_path(self.geometry_file)

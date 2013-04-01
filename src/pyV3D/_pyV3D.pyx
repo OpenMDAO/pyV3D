@@ -230,11 +230,12 @@ cdef class WV_Wrapper:
     cdef wvContext* context
     
     def __cinit__(self):
-        pass
+        self.context = NULL
     
     def __dealloc__(self):
         """Frees the memory for the wvContext object"""
-        wv_destroyContext(&self.context)
+        if self.context != NULL:
+            wv_destroyContext(&self.context)
         
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        

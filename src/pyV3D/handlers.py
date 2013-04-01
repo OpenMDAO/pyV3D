@@ -25,11 +25,10 @@ class WSHandler(websocket.WebSocketHandler):
 
     subhandlers = {}   # map of obj pathname or file pathname to subhandler instance
     protocols = {}   # map of protocols to lists of supporting subhandlers
-    viewer_classes = {}
 
     def initialize(self, view_dir):
         self.view_dir = os.path.expanduser(os.path.abspath(view_dir))
-        self.view_handler = None
+        self.subhandler = None
 
     def _handle_request_exception(self, exc):
         ERROR("Unhandled exception: %s" % str(exc))
@@ -38,7 +37,7 @@ class WSHandler(websocket.WebSocketHandler):
 
     def _execute(self, transforms, *args, **kwargs):
         DEBUG("in _execute")
-        self._args = args[:]
+        self._args = [a for a in args if a.strip()]
         self._kwargs = kwargs.copy()
         args = args[1:]
         try:
@@ -55,39 +54,39 @@ class WSHandler(websocket.WebSocketHandler):
 
             # look for the sub handler to see if we've already created one with 
             # another protocol, e.g., pyv3d-bin-1.0 and pyv3d-txt-1.0
-            self.view_handler = self.subhandlers.get(tuple(args))
-            if self.view_handler is not None:
+            self.subhandler = self.subhandlers.get(tuple(args))
+            if self.subhandler is not None:
                 DEBUG("subhandler already existed, adding protocol %s to it." % self._proto)
 
-            if self.view_handler is None:
-                DEBUG("creating a new view_handler for %s" % args)
-                # try to create a view_handler matching the given protocol.  Take
+            if self.subhandler is None:
+                DEBUG("creating a new subhandler for %s" % args)
+                # try to create a subhandler matching the given protocol.  Take
                 # the first one that succeeds
                 DEBUG("matching klasses:", self.protocols.get(self._proto, []))
                 for klass in self.protocols.get(self._proto, []):
+                    DEBUG("trying to create a ",klass)
                     try:
-                        self.view_handler = klass(self, *args, **kwargs)
+                        self.subhandler = klass(self, *args, **kwargs)
                     except Exception as err:
                         DEBUG(err)
                         pass
                     else:
-                        self.subhandlers[tuple(args)] = self.view_handler
+                        self.subhandlers[tuple(args)] = self.subhandler
                         break
                 else:
                     ERROR("No viewhandlers found.")
-                    self.send_error(404)
                     return
 
             DEBUG("got a subhandler!")
-            self.view_handler.open(self)
+            self.subhandler.open(self)
         except Exception as err:
             ERROR('Exception: %s' % traceback.format_exc())
 
     def on_message(self, message):
-        if self.view_handler is None:
+        if self.subhandler is None:
             self.send_error(404)
             return
-        self.view_handler.on_message(message)
+        self.subhandler.on_message(message)
 
     def on_close(self):
         DEBUG("WebSocket closed (proto=%s" % self._proto)
@@ -178,6 +177,11 @@ class WV_ViewHandler(SubHandler):
 
 class CubeViewHandler(WV_ViewHandler):
 
+    def __init__(self, handler, *args, **kwargs):
+        super(CubeViewHandler, self).__init__()
+
+        if args or kwargs:
+            raise RuntimeError("CubViewHandler should have no args or kwargs. args=%s, kwargs=%s" % (args, kwargs))
 
     def create_geom(self):
 
@@ -203,11 +207,8 @@ def load_subhandlers():
             ERROR("Entry point %s failed to load: %s" % (str(ep).split()[0], err))
         else:
             DEBUG('loaded entry point ',str(ep).split()[0])
-            # exts = klass.get_file_extensions()
-            # for ext in exts:
-            #     WSHandler.viewer_classes.setdefault(ext, []).append(klass)
             protos = klass.get_protocols()
             for proto in protos:
                 WSHandler.protocols.setdefault(proto, []).append(klass)
-    DEBUG("protos.keys = ",str(WSHandler.protocols.keys()))
+
 

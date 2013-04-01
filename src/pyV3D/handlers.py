@@ -23,7 +23,7 @@ DEBUG = ERROR
 
 class WSHandler(websocket.WebSocketHandler):
 
-    view_handlers = {}
+    subhandlers = {}
     viewer_classes = {}
 
     def initialize(self, view_dir):
@@ -72,7 +72,7 @@ class WSHandler(websocket.WebSocketHandler):
                 if klass:
                     self.view_handler = klass(handler=self, fname=self.geometry_file, 
                                               inner_class=self.inner_class)
-                    self.view_handlers[self.geometry_file] = self.view_handler
+                    self.subhandlers[self.geometry_file] = self.view_handler
 
                 if klass is None:
                     self.send_error(404)
@@ -173,7 +173,7 @@ class CubeViewHandler(WV_ViewHandler):
         self.wv.createBox("Box$1", WV_ON|WV_SHADING|WV_ORIENTATION, [0.,0.,0.])
 
 
-def load_view_handlers():
+def load_subhandlers():
     DEBUG("in load_entry_points()")
     # find all of the installed pyv3d view handlers
     for ep in working_set.iter_entry_points('pyv3d.subhandlers'):

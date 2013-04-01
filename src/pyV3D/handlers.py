@@ -24,7 +24,7 @@ DEBUG = ERROR
 class WSHandler(websocket.WebSocketHandler):
 
     subhandlers = {}   # map of obj pathname or file pathname to subhandler instance
-    protocols = {}   # map of protocols to lists of supporting subhandlers
+    protocols   = {}   # map of protocols to lists of supporting subhandlers
 
     def initialize(self, view_dir):
         self.view_dir = os.path.expanduser(os.path.abspath(view_dir))
@@ -33,7 +33,6 @@ class WSHandler(websocket.WebSocketHandler):
     def _handle_request_exception(self, exc):
         ERROR("Unhandled exception: %s" % str(exc))
         super(WSHandler, self)._handle_request_exception(exc)
-
 
     def _execute(self, transforms, *args, **kwargs):
         DEBUG("in _execute")
@@ -46,13 +45,11 @@ class WSHandler(websocket.WebSocketHandler):
             ERROR("%s" % str(err))
 
     def open(self):
-        DEBUG("in open")
-
         try:
             args = self._args
             kwargs = self._kwargs
 
-            # look for the sub handler to see if we've already created one with 
+            # look for the subhandler to see if we've already created one with 
             # another protocol, e.g., pyv3d-bin-1.0 and pyv3d-txt-1.0
             self.subhandler = self.subhandlers.get(tuple(args))
             if self.subhandler is not None:
@@ -62,7 +59,6 @@ class WSHandler(websocket.WebSocketHandler):
                 DEBUG("creating a new subhandler for %s" % args)
                 # try to create a subhandler matching the given protocol.  Take
                 # the first one that succeeds
-                DEBUG("matching klasses:", self.protocols.get(self._proto, []))
                 for klass in self.protocols.get(self._proto, []):
                     DEBUG("trying to create a ",klass)
                     try:
@@ -84,11 +80,13 @@ class WSHandler(websocket.WebSocketHandler):
 
     def on_message(self, message):
         if self.subhandler is None:
-            self.send_error(404)
+            ERROR("no subhandler to handle message")
             return
-        self.subhandler.on_message(message)
+        self.subhandler.on_message(self, message)
 
     def on_close(self):
+        if self.subhandler:
+            self.subhandler.on_close(self)
         DEBUG("WebSocket closed (proto=%s" % self._proto)
 
     def select_subprotocol(self, subprotocols):
@@ -118,14 +116,14 @@ class SubHandler(object):
     def __init__(self):
         self.handlers = {}  # need this to send the msgs
 
-    def on_message(self, message):
-        DEBUG("websocket got message: %s" % message)
+    def on_message(self, handler, message):
+        DEBUG("websocket subhandler got message for protocol (%s): %s" % (handler._proto, message))
 
-    def on_close(self):
-        DEBUG("WebSocket closed. addr=%s" % id(self))
+    def on_close(self, handler):
+        DEBUG("WebSocket subhandler closed for protocol %s" % handler._proto)
 
     def open(self, handler):
-        DEBUG("WebSocket opened. addr=%d" % id(self))
+        DEBUG("WebSocket subhandler opened for protocol %s" % handler._proto)
         if handler._proto in self.handlers:
             raise RuntimeError("this subhandler already has a handler for protocol %s" % handler._proto)
         self.handlers[handler._proto] = handler

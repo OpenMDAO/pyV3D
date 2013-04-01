@@ -176,13 +176,13 @@ class CubeViewHandler(WV_ViewHandler):
 def load_view_handlers():
     DEBUG("in load_entry_points()")
     # find all of the installed pyv3d view handlers
-    for ep in working_set.iter_entry_points('pyv3d.view_handlers'):
-        DEBUG(str(ep).split()[0])
+    for ep in working_set.iter_entry_points('pyv3d.subhandlers'):
         try:
             klass = ep.load()
         except Exception as err:
             ERROR("Entry point %s failed to load: %s" % (str(ep).split()[0], err))
         else:
+            DEBUG('loaded entry point ',str(ep).split()[0])
             exts = klass.get_file_extensions()
             for ext in exts:
                 WSHandler.viewer_classes.setdefault(ext, []).append(klass)

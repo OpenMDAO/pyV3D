@@ -27,6 +27,7 @@ class WSHandler(websocket.WebSocketHandler):
     protocols   = {}   # map of protocols to lists of supporting subhandlers
 
     def initialize(self, view_dir):
+        DEBUG("view dir = %s" % view_dir)
         self.view_dir = os.path.expanduser(os.path.abspath(view_dir))
         self.subhandler = None
 
@@ -58,7 +59,8 @@ class WSHandler(websocket.WebSocketHandler):
             if self.subhandler is None:
                 DEBUG("creating a new subhandler for %s" % args)
                 # try to create a subhandler matching the given protocol.  Take
-                # the first one that succeeds
+                # the first one that succeeds.  This means that subhandlers MUST
+                # raise an exception if they are not able to successfully construct themselves.
                 for klass in self.protocols.get(self._proto, []):
                     DEBUG("trying to create a ",klass)
                     try:
@@ -174,6 +176,9 @@ class WV_ViewHandler(SubHandler):
 
 
 class CubeViewHandler(WV_ViewHandler):
+    """This is just here for demo purposes so that something can be viewed even
+    if no real pyv3d subhandler plugins have been installed.
+    """
 
     def __init__(self, handler, *args, **kwargs):
         super(CubeViewHandler, self).__init__()

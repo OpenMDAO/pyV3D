@@ -173,10 +173,18 @@ class STLGeometryObject(object):
 
 class STLViewHandler(WV_ViewHandler):
 
-    @staticmethod
-    def get_file_extensions():
-        """Returns a list of file extensions that this handler knows how to view."""
-        return ['stl']
+    def __init__(self, handler, *args, **kwargs):
+        super(STLViewHandler, self).__init__()
+
+        if len(args) > 0 and args[0]:
+            fname = handler.find_file(args[0])
+            if fname:
+                if fname.endswith('.stl'):
+                    self.geometry_file = fname
+                    return
+                else:
+                    raise RuntimeError("file %s is not an STL file." % fname)
+        raise RuntimeError("bad __init__ args")
 
     def create_geom(self):
         eye    = array([0.0, 0.0, 7.0], dtype=float32)
@@ -189,8 +197,7 @@ class STLViewHandler(WV_ViewHandler):
         bias  = 1
         self.wv.createContext(bias, fov, zNear, zFar, eye, center, up)
 
-        self.model_file = os.path.expanduser(os.path.abspath(self.geometry_file))
-        geom = STLGeometryObject(self.model_file)
+        geom = STLGeometryObject(self.geometry_file)
         geom.get_visualization_data(self.wv, angle=15., 
                                     relSide=.02, relSag=.001)
 

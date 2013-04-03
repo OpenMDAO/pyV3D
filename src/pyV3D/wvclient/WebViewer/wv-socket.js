@@ -64,8 +64,8 @@ function wsGpOnMessage(evt)
   //for(var i=0,j=msg.length;i<j;++i) {
   //   dat[i] = msg.charCodeAt(i);
   //}
-  logger(" Gprim-binary WebSocket getMessage: " + evt.type + 
-      "  -- bytelength = " + evt.data.length); 
+  //logger(" Gprim-binary WebSocket getMessage: " + evt.type + 
+  //    "  -- bytelength = " + evt.data.length); 
  
   //g.messageQ.push(newbuf);
   g.messageQ.push(evt.data);

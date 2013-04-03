@@ -40,7 +40,7 @@ def main():
     '''
     global DEBUG
 
-    from pyV3D.handlers import WSHandler, load_view_handlers
+    from pyV3D.handlers import WSHandler, load_subhandlers, CubeViewHandler
 
     parser = get_argument_parser()
     options, args = parser.parse_known_args()
@@ -49,7 +49,9 @@ def main():
         DEBUG = ERROR
 
     DEBUG("loading viewer entry points")
-    load_view_handlers()
+    load_subhandlers()
+
+    WSHandler.protocols.setdefault('pyv3d-bin-1.0', []).append(CubeViewHandler)
 
     viewdir = os.path.expanduser(os.path.abspath(options.viewdir))
     if not os.path.isdir(viewdir):

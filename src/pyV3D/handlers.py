@@ -129,7 +129,7 @@ class WSHandler(websocket.WebSocketHandler):
 
 class SubHandler(object):
     def __init__(self):
-        self.handlers = {}  # need this to send the msgs
+        self.handlers = {}  # need real websocket handler(s) to send msgs
 
     def on_message(self, handler, message):
         DEBUG("websocket subhandler got message for protocol (%s): %s" % (handler._prototype, message))
@@ -142,6 +142,7 @@ class SubHandler(object):
         if handler._prototype in self.handlers:
             raise RuntimeError("this subhandler already has a handler for protocol %s" % handler._prototype)
         self.handlers[handler._prototype] = handler
+
 
 
 class WV_ViewHandler(SubHandler):

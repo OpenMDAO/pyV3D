@@ -222,6 +222,70 @@ class CubeViewHandler(WV_ViewHandler):
         self.wv.createBox("Box$1", WV_ON|WV_SHADING|WV_ORIENTATION, [0.,0.,0.])
 
 
+
+class WV_Sender(object):
+    def __init__(self, wv):
+        self.wv = wv
+
+    def send_geometry(self, first=False):
+        self.wv.send_geometry(first)
+
+    def geom_from_file(self, fname):
+        raise NotImplementedError("geom_from_file")
+    
+    def geom_from_obj(self, obj):
+        raise NotImplementedError("geom_from_obj")
+
+
+class WebSocket_WV_Wrapper(WV_Wrapper):
+    def __init__(self, handler):
+        super(WebSocket_WV_Wrapper, self).__init__()
+        self.handlers = {}
+
+        # TODO: make this buffer internal to WV_Wrapper
+        self.buf = self.get_bufflen()*'\0'
+
+    @staticmethod
+    def get_protocols():
+        """Returns a list of supported protocols."""
+        return ['pyv3d-bin-1.0', 'pyv3d-txt-1.0']
+
+    def send_binary_data(self, wsi, buf, ibuf):
+        try:
+            handler = self.handlers['pyv3d-bin-1.0']
+        except KeyError:
+            raise RuntimeError("Can't send binary data. No registred binary protocol handler")
+        try:
+            handler.write_message(buf, binary=True)
+        except Exception as err:
+            ERROR("Exception in send_binary_data:", err)
+            return -1
+        return 0
+
+    def send_geometry(self, first=False):
+        self.wv.prepare_for_sends()
+
+        if first:
+            self.wv.send_GPrim(self, self.buf,  1, self.send_binary_data)  # send init packet
+            self.wv.send_GPrim(self, self.buf, -1, self.send_binary_data)  # send initial suite of GPrims
+        else:  #FIXME: add updating of GPRims here...
+            pass
+
+        self.wv.finish_sends()
+
+    def open(self, handler):
+        DEBUG("WebSocket subhandler opened for protocol %s" % handler._protocol)
+        if handler._protocol in self.handlers:
+            raise RuntimeError("this subhandler already has a handler for protocol %s" % handler._protocol)
+        self.handlers[handler._protocol] = handler
+        try:
+            if handler._protocol == 'pyv3d-bin-1.0':
+                self.create_geom()
+                self.send_geometry(first=True)
+        except Exception as err:
+            ERROR('Exception: %s' % traceback.format_exc())
+
+
 def load_subhandlers():
     """Loads all entry points in the pyv3d.subhandlers group."""
 

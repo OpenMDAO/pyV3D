@@ -5,7 +5,7 @@ import struct
 from numpy import array, float32, float64, int32, uint8
 import numpy as np
 
-from pyV3D.handlers import WV_ViewHandler
+from pyV3D.handlers import WV_Sender
 
 def dbg(*args):
     for msg in args:
@@ -171,22 +171,8 @@ class STLGeometryObject(object):
         dbg(' added gprim with %d vertices' % (len(vertices)/3))
                              
 
-class STLViewHandler(WV_ViewHandler):
-
-    def __init__(self, handler, *args, **kwargs):
-        super(STLViewHandler, self).__init__()
-
-        if len(args) > 0 and args[0]:
-            fname = handler.find_file(args[0])
-            if fname:
-                if fname.endswith('.stl'):
-                    self.geometry_file = fname
-                    return
-                else:
-                    raise RuntimeError("file %s is not an STL file." % fname)
-        raise RuntimeError("bad __init__ args")
-
-    def create_geom(self):
+class STLSender(WV_Sender):
+    def initialize(self, **kwargs):
         eye    = array([0.0, 0.0, 7.0], dtype=float32)
         center = array([0.0, 0.0, 0.0], dtype=float32)
         up     = array([0.0, 1.0, 0.0], dtype=float32)
@@ -197,7 +183,29 @@ class STLViewHandler(WV_ViewHandler):
         bias  = 1
         self.wv.createContext(bias, fov, zNear, zFar, eye, center, up)
 
-        geom = STLGeometryObject(self.geometry_file)
-        geom.get_visualization_data(self.wv, angle=15., 
-                                    relSide=.02, relSag=.001)
+    def geom_from_file(self, fname):
+        geom = STLGeometryObject(fname)
+        geom.get_visualization_data(self.wv, angle=15., relSide=.02, relSag=.001)
+
+
+# class STLViewHandler(WV_ViewHandler):
+
+#     def __init__(self, handler, *args, **kwargs):
+#         super(STLViewHandler, self).__init__()
+
+#         if len(args) > 0 and args[0]:
+#             fname = handler.find_file(args[0])
+#             if fname:
+#                 if fname.endswith('.stl'):
+#                     self.geometry_file = fname
+#                     return
+#                 else:
+#                     raise RuntimeError("file %s is not an STL file." % fname)
+#         raise RuntimeError("bad __init__ args")
+
+#     def create_geom(self):
+
+#         geom = STLGeometryObject(self.geometry_file)
+#         geom.get_visualization_data(self.wv, angle=15., 
+#                                     relSide=.02, relSag=.001)
 

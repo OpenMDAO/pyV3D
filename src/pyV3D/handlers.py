@@ -212,10 +212,10 @@ class WV_Sender(Sender):
 
     def send(self, obj, first=False):
         if isinstance(obj, basestring): # assume it's a filename
-            self.wv.geom_from_file(obj)
+            self.geom_from_file(obj)
         else:
-            self.wv.geom_from_obj(obj)
-        self.wv.send_geometry(first)
+            self.geom_from_obj(obj)
+        self.wv.send(first)
 
     def geom_from_file(self, fname):
         raise NotImplementedError("geom_from_file")

@@ -8,7 +8,7 @@ import numpy as np
 
 from pyV3D.handlers import WV_Sender
 
-from PAM.configurations.pyv3d import GeoMACHParametricGeometry
+from PAM.configurations.pyv3d import GeoMACHParametricGeometry, GeoMACHGeometry
 
 
 class GeoMACHSender(WV_Sender):
@@ -23,6 +23,10 @@ class GeoMACHSender(WV_Sender):
 
         bias  = 0
         self.wv.createContext(bias, fov, zNear, zFar, eye, center, up)
+
+    @staticmethod
+    def supports(obj):
+        return isinstance(obj, GeoMACHGeometry) or isinstance(obj, GeoMACHParametricGeometry)
 
     def geom_from_obj(self, obj):
         if isinstance(obj, GeoMACHParametricGeometry):

@@ -183,6 +183,10 @@ class STLSender(WV_Sender):
         bias  = 1
         self.wv.createContext(bias, fov, zNear, zFar, eye, center, up)
 
+    @staticmethod
+    def supports(obj):
+        return isinstance(obj, basestring) and obj.endswith('.stl')
+
     def geom_from_file(self, fname):
         geom = STLGeometryObject(fname)
         geom.get_visualization_data(self.wv, angle=15., relSide=.02, relSag=.001)

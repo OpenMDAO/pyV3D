@@ -171,7 +171,6 @@ cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
     passes it a buffer of binary data and a pointer to the web server.
     '''
     cdef int status
-    dbg("in int callback")
     cdef bytes py_buf
     py_buf = buf[:ibuf]  #TODO: see about getting rid of this copy 
         

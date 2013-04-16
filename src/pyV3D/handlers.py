@@ -193,7 +193,7 @@ class WV_ViewHandler(SubHandler):
             if handler._protocol == 'pyv3d-bin-1.0':
                 self.create_geom()
                 self.send_geometry(first=True)
-        except Exception as err:
+        except Exception:
             ERROR('Exception: %s' % traceback.format_exc())
 
 
@@ -211,6 +211,9 @@ class WV_Sender(Sender):
         pass
 
     def send(self, obj, first=False):
+        if not first:
+            self.wv.clear()  # clear out old GPrim data
+
         if isinstance(obj, basestring): # assume it's a filename
             self.geom_from_file(obj)
         else:

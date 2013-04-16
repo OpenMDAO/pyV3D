@@ -142,6 +142,8 @@ cdef extern from "wv.h":
 
     void wv_removeGPrim(wvContext *cntxt, int index)
     
+    void wv_removeAll(wvContext *cntxt)
+    
     void wv_prepareForSends(wvContext *cntxt)
     
     void wv_finishSends(wvContext *cntxt)
@@ -283,6 +285,10 @@ cdef class WV_Wrapper:
     def get_bufflen(self):
         return BUFLEN
                 
+    def clear(self):
+        '''Remove all GPrim data.'''
+        wv_removeAll(self.context)
+
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
     def send_GPrim(self, wsi, bytes buf, int flag, wv_SendBinaryData):

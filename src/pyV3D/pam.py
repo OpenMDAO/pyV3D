@@ -1,10 +1,5 @@
 
-import os
-import sys
-import struct
-
-from numpy import array, float32, float64, int32, uint8
-import numpy as np
+from numpy import array, float32
 
 from pyV3D.handlers import WV_Sender
 

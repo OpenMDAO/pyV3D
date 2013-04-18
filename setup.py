@@ -53,11 +53,6 @@ kwds = {'install_requires':['numpy', 'tornado', 'argparse'],
         'url': 'https://github.com/OpenMDAO/pyV3D',
         'version': '0.1',
         'zip_safe': False,
-        'entry_points': """
-           [openmdao.binpub]
-           pyV3D.stl.STLSender = pyV3D.stl:STLSender
-           pyV3D.pam.GeoMACHSender = pyV3D.pam:GeoMACHSender
-        """
        }
 
 kwds.update(config.todict())

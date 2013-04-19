@@ -368,8 +368,9 @@ cdef class WV_Wrapper:
             tris: int Numpy ndarray (1xM*3 or Mx3)
                 Vector of triangle connectivities.
 
-            colors: float32 Numpy ndarray (1x3)
-                Optional. Vector of color coordinates for this group of points.
+            colors: float32 Numpy ndarray (1x3) or (1xN*3)
+                Optional. Vector of color coordinates for this group of points.  Can give a single color [r,g,b] or a color
+                for each vertex.
 
             normals: Numpy ndarray (1xM*3 or Mx3)
                 Optional. Vector of triangle outward-pointing normals.
@@ -399,10 +400,11 @@ cdef class WV_Wrapper:
                 Set to true to turn on display of edges
         """
         cdef int attr
-        cdef float color[3], focus[4]
+        cdef float focus[4]
         cdef char *gpname
         cdef wvData items[6]
         cdef np.ndarray[np.int32_t, ndim=1, mode="c"] segs
+        cdef np.ndarray[np.float32_t, ndim=1, mode="c"] color
 
         attr = make_attr(visible=visible, 
                          transparency=transparency, 
@@ -424,15 +426,9 @@ cdef class WV_Wrapper:
 
         # triangle colors
         if colors is None:
-            color[0] = 1.0
-            color[1] = 0.0
-            color[2] = 0.0
-        else:
-            color[0] = colors[0]
-            color[1] = colors[1]
-            color[2] = colors[2]
+            colors = np.array([1.0, 0.0, 0.0], dtype=np.float32, order='C')
 
-        _check(wv_setData(WV_REAL32, 1, color, WV_COLORS, &items[2]), "wv_setData")
+        _check(wv_setData(WV_REAL32, len(colors)/3, &colors[0], WV_COLORS, &items[2]), "wv_setData")
 
         # normals
         if normals is not None:
@@ -456,11 +452,9 @@ cdef class WV_Wrapper:
             "wv_setData")
 
         # segment colors
-        color[0] = 0.0;
-        color[1] = 0.0;
-        color[2] = 0.0;
+        color = np.array([0.0, 0.0, 0.0], dtype=np.float32, order='C')
 
-        _check(wv_setData(WV_REAL32, 1, color, WV_LCOLOR, &items[it_col+1]), "wv_setData")
+        _check(wv_setData(WV_REAL32, 1, &color[0], WV_LCOLOR, &items[it_col+1]), "wv_setData")
 
         # make graphic primitive 
         gpname = name
@@ -487,7 +481,7 @@ cdef class WV_Wrapper:
             points: float32 Numpy ndarray (1xN*3 or Nx3)
                 Vector of point coordinates for the given edge.
             
-            colors: float32 Numpy ndarray (1x3)
+            colors: float32 Numpy ndarray (1x3) or 1xN*3
                 Optional. Vector of color coordinates for this group of points.
 
             bbox: array, ndarray, or list of size 6 [xmin,ymin,zmin,xmax,ymax,zmax]
@@ -514,7 +508,7 @@ cdef class WV_Wrapper:
             lines_visible: bool
                 Set to true to turn on display of edges
        """
-        cdef float color[3], focus[4]
+        cdef float focus[4]
         cdef char *gpname
         cdef int head, attr
         cdef wvData items[5]
@@ -548,15 +542,9 @@ cdef class WV_Wrapper:
  
         # line colors
         if colors is None:
-            color[0] = 0.0
-            color[1] = 0.0
-            color[2] = 1.0
-        else:
-            color[0] = colors[0]
-            color[1] = colors[1]
-            color[2] = colors[2]
+            colors = np.array([0.0, 0.0, 1.0], dtype=np.float32, order='C')
 
-        _check(wv_setData(WV_REAL32, 1, color, WV_COLORS, &items[1]),
+        _check(wv_setData(WV_REAL32, len(colors)/3, &colors[0], WV_COLORS, &items[1]),
             "wv_setData")
 
         gpname = name

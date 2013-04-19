@@ -1,74 +1,46 @@
-import os.path
-import setuptools
 import sys
+import os
 
-from numpy.distutils.core import setup
-from numpy.distutils.misc_util import Configuration
+from setuptools import setup, Extension
+from Cython.Distutils import build_ext
 
-include_dirs = []
-library_dirs = []
-if sys.platform == 'win32':
-    # Update the ``library_dir_option`` function in MSVCCompiler 
-    # to add quotes around /LIBPATH entries.
-    import types
-    def _lib_dir_option(self, dir):
-        return '/LIBPATH:"%s"' % dir
-    
-    from distutils.msvc9compiler import MSVCCompiler
-    setattr(MSVCCompiler, 'library_dir_option',
-            types.MethodType(_lib_dir_option, None, MSVCCompiler))
-    
-    sdkdir = os.environ.get('WindowsSdkDir')
-    if sdkdir:
-        include_dirs.append(os.path.join(sdkdir,'Include'))
-        library_dirs.append(os.path.join(sdkdir,'Lib'))
-        # make sure we have mt.exe available in case we need it
-        path = os.environ['PATH'].split(';')
-        path.append(os.path.join(sdkdir,'bin'))
-        os.environ['PATH'] = ';'.join(path)
+try:
+    import numpy
+    numpy_include = os.path.join(os.path.dirname(numpy.__file__),
+                                 'core', 'include')
+except ImportError:
+    print 'numpy was not found.  Aborting build'
+    sys.exit(-1)
 
-config = Configuration(name='pyV3D')
-config.add_extension('_pyV3D',
-                     sources=['src/pyV3D/wv.c', 'src/pyV3D/_pyV3D.c'],
-                     include_dirs=include_dirs,
-                     library_dirs=library_dirs)
-config.add_data_files('LICENSE.txt','README.txt')
+module1 = Extension('_pyV3D',
+                    include_dirs=[numpy_include],
+                    sources=["src/pyV3D/_pyV3D.pyx"])
 
-kwds = {'install_requires':['numpy', 'tornado', 'argparse'],
+
+kwds = {'name': 'pyV3D',
+        'version': '0.1',
+        'install_requires':['numpy', 'tornado', 'argparse'],
+        'cmdclass': {'build_ext': build_ext},
+        'ext_modules': [module1],
         'author': '',
         'author_email': '',
         'classifiers': ['Intended Audience :: Science/Research',
                         'Topic :: Scientific/Engineering'],
-        'description': 'Python web viewer for VBOs',
+        'description': 'Python webGL based web viewer',
         'download_url': '',
         'include_package_data': True,
         'keywords': ['openmdao'],
         'license': 'Apache License, Version 2.0',
         'maintainer': 'Kenneth T. Moore',
         'maintainer_email': 'kenneth.t.moore-1@nasa.gov',
-        'name': 'pyV3D',
-        'package_data': {'pyV3D': []},
+        'package_data': {
+               'pyV3D': ['test/*.py', 'test/*.csm', 'test/*.col']
+        },
         'package_dir': {'': 'src'},
         'packages': ['pyV3D'],
         'url': 'https://github.com/OpenMDAO/pyV3D',
-        'version': '0.1',
         'zip_safe': False,
        }
 
-kwds.update(config.todict())
 setup(**kwds)
 
-
-
-
-#from numpy.distutils.core import Extension, setup
-#from numpy.distutils.misc_util import Configuration
-#from distutils.core import setup
-#from distutils.extension import Extension
-#from Cython.Distutils import build_ext
-#
-#setup(
-#    cmdclass = {'build_ext': build_ext},
-#    ext_modules = [Extension("wv", ["src/pyV3D/wv.c"]),
-#                   Extension("pyV3D", ["src/pyV3D/pyV3D.pyx"])]
-#)

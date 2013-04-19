@@ -11,7 +11,7 @@ except ImportError:
     print 'numpy was not found.  Aborting build'
     sys.exit(-1)
 
-module1 = Extension('_pyV3D',
+module1 = Extension('pyV3D._pyV3D',
                     include_dirs=[numpy_include],
                     sources=["src/pyV3D/_pyV3D.c",
                              "src/pyV3D/wv.c"])

@@ -2,7 +2,6 @@ import sys
 import os
 
 from setuptools import setup, Extension
-from Cython.Distutils import build_ext
 
 try:
     import numpy
@@ -14,13 +13,12 @@ except ImportError:
 
 module1 = Extension('_pyV3D',
                     include_dirs=[numpy_include],
-                    sources=["src/pyV3D/_pyV3D.pyx"])
+                    sources=["src/pyV3D/_pyV3D.c"])
 
 
 kwds = {'name': 'pyV3D',
         'version': '0.1',
         'install_requires':['numpy', 'tornado', 'argparse'],
-        'cmdclass': {'build_ext': build_ext},
         'ext_modules': [module1],
         'author': '',
         'author_email': '',

@@ -3,13 +3,11 @@ import sys
 import traceback
 from threading import Lock
 
-from numpy import array, float32, float64, int32, uint8
+from numpy import array, float32
 
 from tornado import websocket
 
 from pyV3D._pyV3D import WV_Wrapper, WV_ON, WV_SHADING, WV_ORIENTATION
-
-from pkg_resources import working_set
 
 def ERROR(*args):
     for arg in args:

@@ -161,12 +161,6 @@ cdef extern from "wv.h":
 import sys
 
 
-def dbg(*args):
-    for msg in args:
-        sys.stderr.write(str(msg))
-        sys.stderr.write(" ")
-    sys.stderr.write("\n")
-    
     
 cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
     '''This Cython function wraps the python return function, and
@@ -325,7 +319,6 @@ cdef class WV_Wrapper:
         '''
         
         wv_removeGPrim(self.context, index)
-        dbg("Gprim %d removed from context" % index)
         
         
     def prepare_for_sends(self):

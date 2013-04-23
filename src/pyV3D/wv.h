@@ -152,13 +152,14 @@ wv_sendGPrim(void *wsi, wvContext *cntxt, unsigned char *buf, int flag,
 void
 wv_removeGPrim(wvContext *cntxt, int index);             
 
-void
-wv_prepareForSends(wvContext *cntxt);
+void wv_prepareForSends(wvContext *cntxt);
     
-void
-wv_finishSends(wvContext *cntxt);
+void wv_finishSends(wvContext *cntxt);
 
-void 
-wv_destroyContext(wvContext **context);
+void wv_destroyContext(wvContext **context);
     
+void wv_removeAll(wvContext *cntxt);
+
+void wv_adjustVerts(wvData *dstruct, float *focus);
+
 #endif  /*_WV_H_*/

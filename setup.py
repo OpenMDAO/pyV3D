@@ -1,31 +1,30 @@
 import sys
 import os
-
-from setuptools import setup, Extension
+import setuptools
 
 try:
-    import numpy
-    numpy_include = os.path.join(os.path.dirname(numpy.__file__),
-                                 'core', 'include')
+    from numpy.distutils.core import setup
+    from numpy.distutils.misc_util import Configuration
 except ImportError:
     print 'numpy was not found.  Aborting build'
     sys.exit(-1)
 
-module1 = Extension('pyV3D._pyV3D',
-                    include_dirs=[numpy_include],
-                    sources=["src/pyV3D/_pyV3D.c",
-                             "src/pyV3D/wv.c"])
+srcs = [
+    "src/pyV3D/_pyV3D.c",
+    "src/pyV3D/wv.c"
+]
 
+config = Configuration(name="pyV3D")
+config.add_extension("pyV3D._pyV3D", sources=srcs)
 
 kwds = {'name': 'pyV3D',
         'version': '0.1',
         'install_requires':['numpy', 'tornado', 'argparse'],
-        'ext_modules': [module1],
         'author': '',
         'author_email': '',
         'classifiers': ['Intended Audience :: Science/Research',
                         'Topic :: Scientific/Engineering'],
-        'description': 'Python webGL based web viewer',
+        'description': 'Python webGL based 3D viewer',
         'download_url': '',
         'include_package_data': True,
         'keywords': ['openmdao'],
@@ -40,6 +39,8 @@ kwds = {'name': 'pyV3D',
         'url': 'https://github.com/OpenMDAO/pyV3D',
         'zip_safe': False,
        }
+
+kwds.update(config.todict())
 
 setup(**kwds)
 

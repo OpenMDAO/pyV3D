@@ -548,6 +548,9 @@ cdef class WV_Wrapper:
         # make line width 1.5 
         if self.context.gPrims != NULL:
             self.context.gPrims[igprim].lWidth = 1.5
-        if head != 0:
-            wv_addArrowHeads(self.context, igprim, 0.05, 1, &head)
+
+        # this core dumps on windows and doesn't work properly elsewhere, so
+        # leave it out for now
+        #if head != 0:
+        #    wv_addArrowHeads(self.context, igprim, 0.05, 1, &head)
 

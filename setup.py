@@ -15,10 +15,9 @@ srcs = [
 ]
 
 config = Configuration(name="pyV3D")
-config.add_extension("pyV3D._pyV3D", sources=srcs)
+config.add_extension("_pyV3D", sources=srcs)
 
-kwds = {'name': 'pyV3D',
-        'version': '0.2',
+kwds = {'version': '0.2',
         'install_requires':['numpy', 'tornado', 'argparse'],
         'author': '',
         'author_email': '',

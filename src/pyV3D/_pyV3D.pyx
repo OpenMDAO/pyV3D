@@ -361,9 +361,8 @@ cdef class WV_Wrapper:
             tris: int Numpy ndarray (1xM*3 or Mx3)
                 Vector of triangle connectivities.
 
-            colors: float32 Numpy ndarray (1x3) or (1xN*3)
-                Optional. Vector of color coordinates for this group of points.  Can give a single color [r,g,b] or a color
-                for each vertex.
+            colors: float32 Numpy ndarray (1x3) or (1xM*3)
+                Optional. Vector of color coordinates for this group of points.  Can give a single color [r,g,b] or a color for each tri.
 
             normals: Numpy ndarray (1xM*3 or Mx3)
                 Optional. Vector of triangle outward-pointing normals.

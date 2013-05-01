@@ -40,16 +40,13 @@ def main():
     '''
     global DEBUG
 
-    from pyV3D.handlers import WSHandler, load_subhandlers, CubeViewHandler
+    from pyV3D.handlers import WSHandler, CubeViewHandler
 
     parser = get_argument_parser()
     options, args = parser.parse_known_args()
 
     if options.debug:
         DEBUG = ERROR
-
-    DEBUG("loading viewer entry points")
-    load_subhandlers()
 
     WSHandler.protocols.setdefault('pyv3d-bin-1.0', []).append(CubeViewHandler)
 

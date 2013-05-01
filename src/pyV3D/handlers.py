@@ -150,12 +150,9 @@ class SubHandler(object):
 
 
 class WV_ViewHandler(SubHandler):
-    def __init__(self):
+    def __init__(self, wv):
         super(WV_ViewHandler, self).__init__()
-
-        self.wv = WV_Wrapper()
-        # TODO: make this buffer internal to WV_Wrapper
-        self.buf = self.wv.get_bufflen()*'\0'
+        self.wv = wv
 
     @staticmethod
     def get_protocols():
@@ -194,6 +191,40 @@ class WV_ViewHandler(SubHandler):
         except Exception:
             ERROR('Exception: %s' % traceback.format_exc())
 
+
+class WS_WV_Wrapper(WV_Wrapper):
+    """A wrapper for the wv library that sends updates out over
+    a WebSocket.
+    """
+    
+    def __init__(self):
+        super(WS_WV_Wrapper, self).__init__()
+       
+        # TODO: make this buffer internal to WV_Wrapper
+        self.buf = self.get_bufflen()*b'\0'
+
+    def send(self, first=False):
+        self.prepare_for_sends()
+
+        if first:
+            self.send_GPrim(self, self.buf,  1, self.send_binary_data)  # send init packet
+            self.send_GPrim(self, self.buf, -1, self.send_binary_data)  # send initial suite of GPrims
+        else:  
+            self.send_GPrim(self, self.buf, -1, self.send_binary_data)  # send initial suite of GPrims
+
+        self.finish_sends()
+        
+    def send_binary_data(self, wsi, buf, ibuf):
+        """This is called multiple times during the sending of a 
+        set of graphics primitives.
+        """
+        logger.error("send_binary_data: , objname='%s', ibuf=%d" % (self.objname, ibuf))
+        try:
+            publish(self.objname, buf, binary=True)
+        except Exception:
+            logger.error(traceback.format_exc())
+            return -1
+        return 0
 
 class Sender(object):
     def send(self, first=False):
@@ -247,72 +278,6 @@ class CubeSender(WV_Sender):
 
     def geom_from_obj(self, obj):
         self.wv.createBox("Box$1", WV_ON|WV_SHADING|WV_ORIENTATION, [0.,0.,0.])
-
-
-# class WebSocket_WV_Wrapper(WV_Wrapper):
-#     def __init__(self, handler):
-#         super(WebSocket_WV_Wrapper, self).__init__()
-#         self.handlers = {}
-
-#         # TODO: make this buffer internal to WV_Wrapper
-#         self.buf = self.get_bufflen()*'\0'
-
-#     @staticmethod
-#     def get_protocols():
-#         """Returns a list of supported protocols."""
-#         return ['pyv3d-bin-1.0', 'pyv3d-txt-1.0']
-
-#     def send_binary_data(self, wsi, buf, ibuf):
-#         try:
-#             handler = self.handlers['pyv3d-bin-1.0']
-#         except KeyError:
-#             raise RuntimeError("Can't send binary data. No registred binary protocol handler")
-#         try:
-#             handler.write_message(buf, binary=True)
-#         except Exception as err:
-#             ERROR("Exception in send_binary_data:", err)
-#             return -1
-#         return 0
-
-#     def send(self, first=False):
-#         self.wv.prepare_for_sends()
-
-#         if first:
-#             self.wv.send_GPrim(self, self.buf,  1, self.send_binary_data)  # send init packet
-#             self.wv.send_GPrim(self, self.buf, -1, self.send_binary_data)  # send initial suite of GPrims
-#         else:  #FIXME: add updating of GPRims here...
-#             pass
-
-#         self.wv.finish_sends()
-
-#     def open(self, handler):
-#         DEBUG("WebSocket subhandler opened for protocol %s" % handler._protocol)
-#         if handler._protocol in self.handlers:
-#             raise RuntimeError("this subhandler already has a handler for protocol %s" % handler._protocol)
-#         self.handlers[handler._protocol] = handler
-#         try:
-#             if handler._protocol == 'pyv3d-bin-1.0':
-#                 self.create_geom()
-#                 self.send(first=True)
-#         except Exception as err:
-#             ERROR('Exception: %s' % traceback.format_exc())
-
-
-# def load_subhandlers():
-#     """Loads all entry points in the pyv3d.subhandlers group."""
-
-#     DEBUG("in load_subhandlers()")
-#     # find all of the installed pyv3d subhandlers
-#     for ep in working_set.iter_entry_points('pyv3d.subhandlers'):
-#         try:
-#             klass = ep.load()
-#         except Exception as err:
-#             ERROR("Entry point %s failed to load: %s" % (str(ep).split()[0], err))
-#         else:
-#             DEBUG('loaded entry point ',str(ep).split()[0])
-#             protos = klass.get_protocols()
-#             for proto in protos:
-#                 WSHandler.protocols.setdefault(proto, []).append(klass)
 
 
 

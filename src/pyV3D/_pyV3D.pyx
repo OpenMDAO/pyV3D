@@ -18,6 +18,7 @@
 #     http://www.cython.org/release/Cython-0.12/Cython/Includes/python.pxd
 
 from libc.stdio cimport printf, fprintf, fopen, fclose, FILE
+from cpython cimport PyBytes_AsString
 
 cimport numpy as np
 import numpy as np
@@ -162,12 +163,11 @@ import sys
     
 cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
     '''This Cython function wraps the python return function, and
-    passes it a buffer of binary data and a pointer to the web server.
+    passes it a buffer of binary data and a pointer to the WV_Wrapper.
     '''
     cdef int status
-    cdef bytes py_buf
-    py_buf = buf[:ibuf]  #TODO: see about getting rid of this copy 
-        
+    cdef bytes py_buf = buf[:ibuf]  #TODO: see about getting rid of this copy 
+
     status = (<object>f)(<object>wsi, py_buf, ibuf)
     return status     
 
@@ -226,6 +226,7 @@ cdef class WV_Wrapper:
     
     def __cinit__(self):
         self.context = NULL
+        self.buffer = BUFLEN*'\0'
     
     def __dealloc__(self):
         """Frees the memory for the wvContext object"""
@@ -283,16 +284,13 @@ cdef class WV_Wrapper:
 
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
-    def send_GPrim(self, wsi, bytes buf, int flag, wv_SendBinaryData):
+    def send_GPrim(self, wsi, int flag, wv_SendBinaryData):
         '''sends the appropriate message(s) to an individual client (browser)
         should be called by the server for every current client instance
         
         wsi: (void*)
             blind pointer to the webserver. This gets passed on to the 
             send function
-            
-        buf: (unsigned char *)
-            the allocated buffer to pack the message
             
         flag: int
              what to do:
@@ -303,7 +301,7 @@ cdef class WV_Wrapper:
          wv_sendBinaryData(wsi, buf, len): function
              callback function to send the packets
         '''
-        cdef unsigned char* cbuf = buf
+        cdef unsigned char* cbuf = self.buffer
         _check(wv_sendGPrim(<void*>wsi, self.context, cbuf, flag, 
                      callback, <void *>wv_SendBinaryData), "wv_sendGPrim")
                      

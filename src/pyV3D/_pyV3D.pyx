@@ -154,8 +154,6 @@ cdef extern from "wv.h":
                          int nHeads, int *heads)
 
     void wv_adjustVerts(wvData *dstruct, float *focus)
-
-    void wv_createBox(wvContext *cntxt, char *name, int attr, float *offset)
     
 
 import sys
@@ -333,13 +331,6 @@ cdef class WV_Wrapper:
         wv_finishSends(self.context)
 
 
-    def createBox(self, char *name, int flag, offset):
-        cdef float coffset[3]
-        for i in range(3):
-            coffset[i] = offset[i]
-        wv_createBox(self.context, name, flag, coffset)
-
-
     def set_face_data(self,  np.ndarray[np.float32_t, mode="c"] points not None,
                              np.ndarray[int, mode="c"] tris not None,
                              np.ndarray[np.float32_t, mode="c"] colors=None,
@@ -457,16 +448,17 @@ cdef class WV_Wrapper:
             self.context.gPrims[igprim].lWidth = 1.0
 
 
-    def set_edge_data(self,  np.ndarray[np.float32_t, mode="c"] points not None,
-                             np.ndarray[np.float32_t, mode="c"] colors=None,
-                             name='',
-                             bbox=None,
-                             visible=True,
-                             transparency=False,
-                             shading=False,
-                             orientation=False,
-                             points_visible=False,
-                             lines_visible=False):
+    def set_edge_data(self,  
+                      np.ndarray[np.float32_t, mode="c"] points not None,
+                      np.ndarray[np.float32_t, mode="c"] colors=None,
+                      name='',
+                      bbox=None,
+                      visible=True,
+                      transparency=False,
+                      shading=False,
+                      orientation=False,
+                      points_visible=False,
+                      lines_visible=False):
         """
         Set up VBO data for an edge.
 
@@ -552,4 +544,3 @@ cdef class WV_Wrapper:
         # leave it out for now
         #if head != 0:
         #    wv_addArrowHeads(self.context, igprim, 0.05, 1, &head)
-

@@ -1,26 +1,15 @@
 import os
 import sys
-import traceback
-
-from numpy import array, float32, float64, int32, uint8
-
-from tornado import httpserver, web, escape, ioloop, websocket
-from tornado.web import RequestHandler, StaticFileHandler
+import logging
 
 from argparse import ArgumentParser
+from tornado import httpserver, web, ioloop
 
-_undefined_ = object()
+from pyV3D.handler import WSHandler
 
-def ERROR(*args):
-    for arg in args:
-        sys.stderr.write(str(arg))
-        sys.stderr.write(" ")
-    sys.stderr.write('\n')
-    sys.stderr.flush()
-
-def DEBUG(*args):
-    pass
-
+# this server demo just supports viewing of STL files and a simple cube
+from pyV3D.stl import STLSender
+from pyV3D.cube import CubeSender
 
 def get_argument_parser():
     ''' create a parser for command line arguments
@@ -28,8 +17,9 @@ def get_argument_parser():
     parser = ArgumentParser(description='launch the test server')
     parser.add_argument('-p', '--port', type=int, dest='port', default=8000,
                         help='port to run server on')
-    parser.add_argument("-d","--debug", action="store_true", dest='debug',
-                        help="turn on debug mode")
+    parser.add_argument('--logging', action='store', type=str, dest='logging',
+                        default='warning',
+                        help='set logging level, e.g., --logging=info or --logging=debug')
     parser.add_argument('viewdir', nargs='?', default='.',
                         help='pathname of directory containing files to view')
     return parser
@@ -38,17 +28,25 @@ def get_argument_parser():
 def main():
     ''' Process command line arguments and run.
     '''
-    global DEBUG
-
-    from pyV3D.handlers import WSHandler, CubeViewHandler
-
     parser = get_argument_parser()
     options, args = parser.parse_known_args()
 
-    if options.debug:
-        DEBUG = ERROR
+    loglevels = {
+        'debug': logging.DEBUG,
+        'info': logging.INFO,
+        'warning': logging.WARNING,
+        'error': logging.ERROR,
+        'critical': logging.CRITICAL,
+    }
+    logging.basicConfig(level=loglevels.get(options.logging, logging.WARNING))
 
-    WSHandler.protocols.setdefault('pyv3d-bin-1.0', []).append(CubeViewHandler)
+    # associate a couple of senders with pyv3d protocols
+    # NOTE: the server in its current state doesn't do anything with the pyv3d-txt-1.0
+    #       channel, but the plumbing is there so that it SHOULD be pretty easy to 
+    #       get it working...
+    for proto in ['pyv3d-bin-1.0', 'pyv3d-txt-1.0']:
+        WSHandler.protocols.setdefault(proto, []).append(CubeSender)
+        WSHandler.protocols[proto].append(STLSender)
 
     viewdir = os.path.expanduser(os.path.abspath(options.viewdir))
     if not os.path.isdir(viewdir):
@@ -63,13 +61,13 @@ def main():
 
     handlers = [
         web.url(r'/',                web.RedirectHandler, {'url': '/index.html', 'permanent': False}),    
-        web.url(r'/viewers/(.*)',    WSHandler, handler_data),
+        web.url(r'/viewers?(.*)',    WSHandler, handler_data),
         web.url(r'/(.*)',            web.StaticFileHandler, {'path': os.path.join(APP_DIR,'wvclient')}),
     ]
 
     app_settings = {
-        'static_path':       APP_DIR,
-        'debug':             True,
+        'static_path': APP_DIR,
+        'debug':       True,
     }
    
     app = web.Application(handlers, **app_settings)
@@ -81,7 +79,7 @@ def main():
     try:
         ioloop.IOLoop.instance().start()
     except KeyboardInterrupt:
-        DEBUG('interrupt received, shutting down.')
+        print 'interrupt received, shutting down.'
 
 
 if __name__ == '__main__':

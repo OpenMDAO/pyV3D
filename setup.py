@@ -37,6 +37,11 @@ kwds = {'version': '0.4',
         'packages': ['pyV3D'],
         'url': 'https://github.com/OpenMDAO/pyV3D',
         'zip_safe': False,
+        'entry_points': {
+            'console_scripts': [
+               "wvserver=pyV3D.wvserver:main"
+            ]
+         }
        }
 
 kwds.update(config.todict())

@@ -1,2 +1,2 @@
-recursive-include src/pyV3D/test *.py *.csm *.stl
+recursive-include src/pyV3D/test *.py *.stl
 

@@ -51,7 +51,6 @@ class CubeGeometry(object):
             wv.set_face_data(points=self.vertices[i], 
                              tris=self.triangles, 
                              colors=self.colors[i],
-                             #normals=self.normals[i],
                              bbox=self.bbox,
                              name="Face %d"%(i+1))
 

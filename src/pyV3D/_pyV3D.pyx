@@ -226,7 +226,7 @@ cdef class WV_Wrapper:
     
     def __cinit__(self):
         self.context = NULL
-        self.buffer = BUFLEN*'\0'
+        self.buffer = BUFLEN*b'\0'
     
     def __dealloc__(self):
         """Frees the memory for the wvContext object"""

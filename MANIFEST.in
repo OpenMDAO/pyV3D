@@ -1,3 +1,2 @@
-graft src/pyV3D/sphinx_build/html
-recursive-include src/pyV3D/test *.py
+recursive-include src/pyV3D/test *.py *.stl
 

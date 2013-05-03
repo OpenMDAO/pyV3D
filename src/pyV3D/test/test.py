@@ -1,6 +1,6 @@
 
 from pyV3D.pyV3D import WV_Wrapper
-from numpy import array, float64, float32, int32, uint8
+from numpy import array, float32, int32
 
 
 myWV = WV_Wrapper()
@@ -12,12 +12,12 @@ up     = array([0.0, 1.0, 0.0], dtype=float32)
 myWV.createContext(0, 30.0, 1.0, 10.0, eye, center, up)
 
 # box
-# v6----- v5
-# /| /|
+#  v6----- v5
+# /|       /|
 # v1------v0|
-# | | | |
+# | |     | |
 # | |v7---|-|v4
-# |/ |/
+# |/      |/
 # v2------v3
 #
 # vertex coords array
@@ -59,7 +59,7 @@ indices = [
 
 vertices = array(vertices, dtype=float32)
 indices = array(indices, dtype=int32)
-colors = array(colors, dtype=uint8)
+colors = array(colors, dtype=float32)
 normals = array(normals, dtype=float32)
 
 myWV.add_GPrim_solid("MyBox", vertices, indices, colors, normals,
@@ -97,11 +97,10 @@ class wsi_server(object):
         with open(name, 'wb') as out:
             out.write(buf)
 
-buf = 3205696*' '
 wsi = wsi_server()
 myWV.prepare_for_sends()
-#myWV.send_GPrim(wsi, buf, 1, send_binary_data)
-#myWV.send_GPrim(wsi, buf, 0, send_binary_data)
-myWV.send_GPrim(wsi, buf, -1, send_binary_data)
+#myWV.send_GPrim(wsi, 1, send_binary_data)
+#myWV.send_GPrim(wsi, 0, send_binary_data)
+myWV.send_GPrim(wsi, -1, send_binary_data)
 myWV.finish_sends()
 myWV.remove_GPrim(0)

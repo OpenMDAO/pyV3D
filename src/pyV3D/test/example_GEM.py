@@ -62,12 +62,11 @@ print "my breps", len(myBReps)
 
 myWV.load_geometry(myGeometry, name="MyBox")
 
-buf = 3205696*' '
 wsi = wsi_server()
 myWV.prepare_for_sends()
-#myWV.send_GPrim(wsi, buf, 1, send_binary_data)
-#myWV.send_GPrim(wsi, buf, 0, send_binary_data)
-myWV.send_GPrim(wsi, buf, -1, send_binary_data)
+#myWV.send_GPrim(wsi, 1, send_binary_data)
+#myWV.send_GPrim(wsi, 0, send_binary_data)
+myWV.send_GPrim(wsi, -1, send_binary_data)
 myWV.finish_sends()
 
 myWV.remove_GPrim(0)

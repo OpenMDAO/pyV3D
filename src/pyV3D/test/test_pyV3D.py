@@ -5,7 +5,8 @@ import tempfile
 import shutil
 
 from pyV3D import WV_Wrapper
-from pyV3D.cube import CubeSender
+from pyV3D.cube import CubeGeometry, CubeSender
+from pyV3D.stl import STLSender
 
 
 class WV_test_Wrapper(WV_Wrapper):
@@ -44,9 +45,43 @@ class PyV3DTestCase(unittest.TestCase):
             shutil.rmtree(self.tdir)
         except:
             pass
-            
-    def test_PyV3D(self):
-        sender = CubeSender(WV_test_Wrapper)
+
+    def _compare(self, s1, s2, name1, name2):
+        if len(s1) != len(s2):
+            self.fail("%s has different length than %s" % (name1, name2))
+        
+        for i in range(len(s1)):
+            if s1[i] != s2[i]:
+                self.fail("byte %d (at least) differs between files %s and %s. (%s != %s)" % 
+                              (i, name1, name2, s1[i], s2[i]))
+
+    def test_cube(self):
+        cname = os.path.join(self.path, 'cube.bin')
+        newname = os.path.join(self.tdir, 'cube.bin')
+
+        sender = CubeSender(WV_test_Wrapper(newname))
+        sender.send(CubeGeometry(), first=True)
+        sender.wv.binfile.close()
+
+        with open(cname) as f:
+            content = f.read()
+        with open(newname) as f:
+            newcontent = f.read()
+        self._compare(content, newcontent, cname, newname)
+        
+    def test_stl(self):
+        cname = os.path.join(self.path, 'star.bin')
+        newname = os.path.join(self.tdir, 'star.bin')
+
+        sender = STLSender(WV_test_Wrapper(newname))
+        sender.send(os.path.join(self.path, 'star.stl'), first=True)
+        sender.wv.binfile.close()
+
+        with open(cname) as f:
+            content = f.read()
+        with open(newname) as f:
+            newcontent = f.read()
+        self._compare(content, newcontent, cname, newname)
         
         
 if __name__ == "__main__":

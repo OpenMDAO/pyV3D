@@ -1,7 +1,7 @@
 
 
 class Sender(object):
-    def send(self, first=False):
+    def send(self, obj, first=False):
         raise NotImplementedError('send')
 
 

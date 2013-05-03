@@ -1,6 +1,6 @@
 from pyV3D.pyV3D import WV_Wrapper, STLGeometryObject
 
-from numpy import array, float64, float32, int32, uint8
+from numpy import array, float32
 
 def send_binary_data(wsi, buf, ibuf):
     print "In send_binary_data"
@@ -36,11 +36,10 @@ myWV.createContext(0, 30.0, 1.0, 10.0, eye, center, up)
 myGeometry = STLGeometryObject("porsche.stl") 
 myGeometry.get_visualization_data(myWV)
 
-buf = 3205696*' '
 wsi = wsi_server()
 myWV.prepare_for_sends()
-myWV.send_GPrim(wsi, buf, 1, send_binary_data)
-myWV.send_GPrim(wsi, buf, -1, send_binary_data)
+myWV.send_GPrim(wsi, 1, send_binary_data)
+myWV.send_GPrim(wsi, -1, send_binary_data)
 myWV.finish_sends()
 
 myWV.remove_GPrim(0)

@@ -28,10 +28,7 @@
     g.zNear =  1.0;             // have some values for Zscreen
     g.zFar  = 11.0;
 
-    //var url = prompt("Enter hostname:port", "Localhost:8000");
-    var fname = prompt("Enter name of file (or click OK to see Awesome Cube\u2122)", "");
-    // initialize webSockets
-    //getSockets("ws://"+url, 1);
+    var fname = prompt("Enter name of file (or click OK to see a simple cube demo)", "");
     getSockets("ws://"+window.location.host, fname);
 
 </script>

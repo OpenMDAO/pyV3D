@@ -17,7 +17,7 @@ srcs = [
 config = Configuration(name="pyV3D")
 config.add_extension("_pyV3D", sources=srcs)
 
-kwds = {'version': '0.4',
+kwds = {'version': '0.4.1',
         'install_requires':['numpy', 'tornado', 'argparse'],
         'author': '',
         'author_email': '',
@@ -31,7 +31,8 @@ kwds = {'version': '0.4',
         'maintainer': 'Kenneth T. Moore',
         'maintainer_email': 'kenneth.t.moore-1@nasa.gov',
         'package_data': {
-               'pyV3D': ['test/*.stl', 'test/*.bin', 'wvclient/*.html', 'wvclient/WebViewer/*.js']
+               'pyV3D': ['wvclient/*.html', 'wvclient/WebViewer/*.js'],
+               'pyV3D.test': ['*.stl', '*.bin']
         },
         'package_dir': {'': 'src'},
         'packages': ['pyV3D', 'pyV3D.test'],

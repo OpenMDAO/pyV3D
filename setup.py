@@ -31,7 +31,8 @@ kwds = {'version': '0.4.1',
         'maintainer': 'Kenneth T. Moore',
         'maintainer_email': 'kenneth.t.moore-1@nasa.gov',
         'package_data': {
-               'pyV3D': ['test/*.stl', 'test/*.bin', 'wvclient/*.html', 'wvclient/WebViewer/*.js']
+               'pyV3D': ['wvclient/*.html', 'wvclient/WebViewer/*.js'],
+               'pyV3D.test': ['*.stl', '*.bin']
         },
         'package_dir': {'': 'src'},
         'packages': ['pyV3D', 'pyV3D.test'],

@@ -1,2 +1,3 @@
-recursive-include src/pyV3D/test *.py *.stl
+recursive-include src/pyV3D/test *.py *.stl *.bin
+recursive-include src/pyV3D/wvclient *.html *.js
 

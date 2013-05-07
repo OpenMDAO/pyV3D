@@ -73,7 +73,10 @@ class WSHandler(websocket.WebSocketHandler):
         except:
             pass
         else:
-            self.fname = os.path.join(self.view_dir, self.fname)
+            self.fname = os.path.abspath(os.path.join(self.view_dir, self.fname))
+            if not self.fname.startswith(self.view_dir):
+                logging.error("directory %s is outside of the allowed view directory")
+                self.fname = None
 
         try:
             self.objname = self.get_argument('obj')
@@ -89,7 +92,6 @@ class WSHandler(websocket.WebSocketHandler):
             super(WSHandler, self)._execute(transforms, *args, **kwargs)
         except Exception as err:
             logging.error("%s" % err)
-
 
     def open(self, *args, **kwargs):
         wv = None

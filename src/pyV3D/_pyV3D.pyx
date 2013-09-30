@@ -155,6 +155,12 @@ cdef extern from "wv.h":
                          int nHeads, int *heads)
 
     void wv_adjustVerts(wvData *dstruct, float *focus)
+
+    void wv_focusvertices(int nVerts, float *vertices, float focus[4])
+
+    float * wv_getBoundingBox(int nGPrims, wvGPrim * gPrims)
+
+    float * wv_getFocus(float bbox[6])
     
 
 import sys

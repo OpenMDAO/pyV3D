@@ -2691,3 +2691,72 @@ wv_finishSends(wvContext *cntxt)
   cntxt->ioAccess = 0;
 }
 
+void wv_focusVertices(int nVerts, float *vertices, float focus[4])
+{
+    int i;
+
+    for(i=0; i<nVerts; i++)
+    {
+        vertices[3*i  ] -= focus[0];
+        vertices[3*i+1] -= focus[1];
+        vertices[3*i+2] -= focus[2];
+        vertices[3*i  ] /= focus[3];
+        vertices[3*i+1] /= focus[3];
+        vertices[3*i+2] /= focus[3];
+    }
+}
+
+float * wv_getBoundingBox(int nGPrims, wvGPrim *gPrims)
+{
+    float boundingBox[6];
+    float x,y,z;
+    
+    int i,j;
+
+    boundingBox[0] = gPrims[0].vertices[0];
+    boundingBox[1] = gPrims[0].vertices[1];
+    boundingBox[2] = gPrims[0].vertices[2];
+
+    boundingBox[3] = gPrims[0].vertices[0];
+    boundingBox[4] = gPrims[0].vertices[1];
+    boundingBox[5] = gPrims[0].vertices[2];
+
+    for(i=0; i<nGPrims; i++)
+    {
+        for(j=0; j<gPrims[i].nVerts; j++){
+
+            x = gPrims[i].vertices[3*j  ];
+            y = gPrims[i].vertices[3*j+1];
+            z = gPrims[i].vertices[3*j+2];
+
+            boundingBox[0] = boundingBox[0] < x ? boundingBox[0] : x;
+            boundingBox[1] = boundingBox[1] < y ? boundingBox[1] : y;
+            boundingBox[2] = boundingBox[2] < z ? boundingBox[2] : z;
+
+            boundingBox[3] = boundingBox[3] > x ? boundingBox[3] : x;
+            boundingBox[4] = boundingBox[4] > y ? boundingBox[4] : y;
+            boundingBox[5] = boundingBox[5] > z ? boundingBox[5] : z;
+        }
+    }
+
+    return boundingBox;
+}
+
+float * wv_getFocus(float bbox[6]){
+    float focus[4];
+    float size = bbox[3] - bbox[0];
+
+    if( size < (bbox[4] - bbox[1]))
+       size = bbox[4] - bbox[1];
+
+    if(size < (bbox[5] - bbox[2]))
+        size = bbox[5] - bbox[2];
+
+    focus[0] = 0.5*(bbox[0] + bbox[3]);
+    focus[1] = 0.5*(bbox[1] + bbox[4]);
+    focus[2] = 0.5*(bbox[2] + bbox[5]);
+    focus[3] = size;
+
+    return focus;
+}
+

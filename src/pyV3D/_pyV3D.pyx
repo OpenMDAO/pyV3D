@@ -156,11 +156,13 @@ cdef extern from "wv.h":
 
     void wv_adjustVerts(wvData *dstruct, float *focus)
 
-    void wv_focusvertices(int nVerts, float *vertices, float focus[4])
+    void wv_focusVertices(int nVerts, float *vertices, float *focus)
 
-    float * wv_getBoundingBox(int nGPrims, wvGPrim * gPrims)
+    float * wv_getBoundingBox(int nGPrims, wvGPrim * gPrims, float *bbox)
 
-    float * wv_getFocus(float bbox[6])
+    float * wv_getFocus(float *bbox, float *focus)
+
+    void wv_setBias(wvContext *cntxt, int bias)
     
 
 import sys
@@ -324,6 +326,7 @@ cdef class WV_Wrapper:
         
         
     def prepare_for_sends(self):
+        self.focus_vertices()
         '''The server needs to call this before sending GPrim info.'''
 
         wv_prepareForSends(self.context)
@@ -404,8 +407,8 @@ cdef class WV_Wrapper:
         # vertices 
         _check(wv_setData(WV_REAL32, len(points)/3, &points[0], WV_VERTICES, &items[0]),
                "wv_setData")
-        if bbox:
-            wv_adjustVerts(&items[0], _get_focus(bbox, focus))
+        #if bbox:
+        #    wv_adjustVerts(&items[0], _get_focus(bbox, focus))
 
         # triangles
         _check(wv_setData(WV_INT32, 3*ntris, &tris[0], WV_INDICES, &items[1]),
@@ -525,8 +528,8 @@ cdef class WV_Wrapper:
         # vertices 
         _check(wv_setData(WV_REAL32, 2*head, &xyzs[0], WV_VERTICES, &items[0]),
             "wv_setData")
-        if bbox:
-            wv_adjustVerts(&items[0], _get_focus(bbox, focus))
+        #if bbox:
+        #    wv_adjustVerts(&items[0], _get_focus(bbox, focus))
  
         # line colors
         if colors is None:
@@ -548,3 +551,30 @@ cdef class WV_Wrapper:
         # leave it out for now
         #if head != 0:
         #    wv_addArrowHeads(self.context, igprim, 0.05, 1, &head)
+
+    def focus_vertices(self):
+        cdef float boundingBox[6]
+        cdef float focus[4]
+        cdef float * vertices
+        cdef int nGPrim, nVerts
+        cdef wvGPrim * gPrim
+         
+        nGPrim = self.context.nGPrim
+        gPrim = self.context.gPrims
+
+        wv_getBoundingBox(nGPrim, &gPrim[0], &boundingBox[0])
+        wv_getFocus(&boundingBox[0], &focus[0])
+       
+        for i in range(nGPrim):
+            nVerts = gPrim[i].nVerts
+            vertices = gPrim[i].vertices
+
+            wv_focusVertices(nVerts, &vertices[0], &focus[0])
+
+    def set_context_bias(self, int bias):
+        cdef wvContext * context
+        
+        context = self.context
+        wv_setBias(&context[0], bias)
+
+

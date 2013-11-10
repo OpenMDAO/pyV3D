@@ -162,4 +162,12 @@ void wv_removeAll(wvContext *cntxt);
 
 void wv_adjustVerts(wvData *dstruct, float *focus);
 
+void wv_focusVertices(int nVerts, float *vertices, float *focus);
+
+float * wv_getBoundingBox(int nGPrims, wvGPrim *gPrims, float *bbox);
+
+float * wv_getFocus(float * bbox, float *focus);
+
+void wv_setBias(wvContext *cntxt, int bias);
+
 #endif  /*_WV_H_*/

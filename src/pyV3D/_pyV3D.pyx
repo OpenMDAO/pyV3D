@@ -164,7 +164,7 @@ cdef extern from "wv.h":
 
     void wv_setBias(wvContext *cntxt, int bias)
 
-    int wv_checkConnectivities(int nPoints, int nTriangles, int * pointIndices)
+    int wv_checkConnectivities(int nPoints, int nTriangles, int * pointIndices, int bias)
     
 
 import sys
@@ -400,6 +400,10 @@ cdef class WV_Wrapper:
         cdef wvData items[6]
         cdef np.ndarray[np.int32_t, ndim=1, mode="c"] segs
         cdef np.ndarray[np.float32_t, ndim=1, mode="c"] color
+        cdef int bias
+
+        bias = self.context.bias
+        
 
         attr = make_attr(visible=visible, 
                          transparency=transparency, 
@@ -413,7 +417,7 @@ cdef class WV_Wrapper:
 
         #Check that triangles use valid point indices
         _check(
-            wv_checkConnectivities(num_points, ntris, &tris[0]),
+            wv_checkConnectivities(num_points, ntris, &tris[0], bias),
             name="wv_checkConnectivities",
             errclass=ConnectivitiesError
             )

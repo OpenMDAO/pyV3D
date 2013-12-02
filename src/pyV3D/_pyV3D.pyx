@@ -404,6 +404,9 @@ cdef class WV_Wrapper:
                          lines_visible=lines_visible)
 
         ntris = len(tris)/3
+        #Check that triangles use valid point indices
+        _check(wv_checkTriangleIndices(len(points)/3,ntris, &tris[0]), "wv_checkTriangleIndices")
+
         # vertices 
         _check(wv_setData(WV_REAL32, len(points)/3, &points[0], WV_VERTICES, &items[0]),
                "wv_setData")

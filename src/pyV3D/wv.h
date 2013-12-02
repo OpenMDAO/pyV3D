@@ -170,4 +170,6 @@ float * wv_getFocus(float * bbox, float *focus);
 
 void wv_setBias(wvContext *cntxt, int bias);
 
+int wv_checkConnectivities(int nPoints, int nTriangles, int * pointIndices);
+
 #endif  /*_WV_H_*/

@@ -2765,16 +2765,25 @@ void wv_setBias(wvContext *cntxt, int bias)
     cntxt->bias = bias;
 }
 
-void wv_checkTriangleIndices(int nPoints, int nTriangles, float *triangles){
+int wv_checkConnectivities(int nPoints, int nTriangles, int *pointIndices){
     int i;
-    
+    int index1, index2, index3;
+   
     for(i=0;i<nTriangles; i++)
     {
-        point1 = float[i*3+0];    
-        point2 = float[i*3+1];   
-        point3 = float[i*3+2];
+        index1 = pointIndices[i*3+0];    
+        index2 = pointIndices[i*3+1];   
+        index3 = pointIndices[i*3+2];
 
-        if(point3>=nPoints){
+        if(index1>=nPoints){
+            return -1;
+        }
+
+        if(index2>=nPoints){
+            return -1;
+        }
+
+        if(index3>=nPoints){
             return -1;
         }
     }

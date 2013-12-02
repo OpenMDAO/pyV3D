@@ -163,6 +163,8 @@ cdef extern from "wv.h":
     float * wv_getFocus(float *bbox, float *focus)
 
     void wv_setBias(wvContext *cntxt, int bias)
+
+    int wv_checkConnectivities(int nPoints, int nTriangles, int * pointIndices)
     
 
 import sys
@@ -404,8 +406,10 @@ cdef class WV_Wrapper:
                          lines_visible=lines_visible)
 
         ntris = len(tris)/3
+        num_points = len(points)/3
+
         #Check that triangles use valid point indices
-        _check(wv_checkTriangleIndices(len(points)/3,ntris, &tris[0]), "wv_checkTriangleIndices")
+        _check(wv_checkConnectivities(num_points, ntris, &tris[0]), "wv_checkConnectivities")
 
         # vertices 
         _check(wv_setData(WV_REAL32, len(points)/3, &points[0], WV_VERTICES, &items[0]),

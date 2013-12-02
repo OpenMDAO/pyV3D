@@ -97,24 +97,18 @@ class PyV3DTestCase(unittest.TestCase):
         '''
 
         #Points are zero indexed
-        points = np.array((4,3),dtype=np.float32).flatten()
-        
+        points = np.zeros((4,3),dtype=np.float32).flatten()
+       
         #Connectivities should be zero indexed
-        good_triangles = np.array([[0,1,2],[1,2,3]], dtype=np.float32).flatten()
+        good_triangles = np.array([[0,1,2],[1,2,3]], dtype=int).flatten()
 
         #Connectivites should not refecerence points outside of bounds [0,len(points)/3)
-        bad_triangles = np.array([[1,2,3],[2,3,4]], dtype=np.float32).flatten()
+        bad_triangles = np.array([[1,2,3],[2,3,4]], dtype=int).flatten()
         wrapper = WV_Test_Wrapper("random_garbage")
         
-        try:
-            wrapper.set_face_data(points, good_triangles)
-        except:
-            self.fail("Exception should not have been raised")
-
-        try:
-            wrapper.set_face_data(points, bad_triangles)
-        except:
-            pass
+        
+        wrapper.set_face_data(points=points, tris=good_triangles, name="kermit")
+        wrapper.set_face_data(points, bad_triangles)
             
 if __name__ == "__main__":
     unittest.main()

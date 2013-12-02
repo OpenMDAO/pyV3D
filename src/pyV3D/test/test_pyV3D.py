@@ -4,10 +4,14 @@ import unittest
 import tempfile
 import shutil
 
+import numpy as np
+
 from pyV3D import WV_Wrapper
 from pyV3D.cube import CubeGeometry, CubeSender
 from pyV3D.stl import STLSender
 
+class WV_Test_Wrapper(WV_Wrapper):
+    pass
 
 class WV_test_Wrapper(WV_Wrapper):
 
@@ -83,6 +87,34 @@ class PyV3DTestCase(unittest.TestCase):
             newcontent = f.read()
         self._compare(content, newcontent, cname, newname)
         
+    def test_checkConnectivities(self):
+        '''
+        Test for geometry with a single face with 4 points and two triangles
+         p0 *--* p3
+            | /|   
+            |/ |
+         p1 *--* p2
+        '''
+
+        #Points are zero indexed
+        points = np.array((4,3),dtype=np.float32).flatten()
         
+        #Connectivities should be zero indexed
+        good_triangles = np.array([[0,1,2],[1,2,3]], dtype=np.float32).flatten()
+
+        #Connectivites should not refecerence points outside of bounds [0,len(points)/3)
+        bad_triangles = np.array([[1,2,3],[2,3,4]], dtype=np.float32).flatten()
+        wrapper = WV_Test_Wrapper("random_garbage")
+        
+        try:
+            wrapper.set_face_data(points, good_triangles)
+        except:
+            self.fail("Exception should not have been raised")
+
+        try:
+            wrapper.set_face_data(points, bad_triangles)
+        except:
+            pass
+            
 if __name__ == "__main__":
     unittest.main()

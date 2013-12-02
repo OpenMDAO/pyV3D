@@ -222,6 +222,9 @@ def make_attr(visible=False,
 
     return attr
 
+class ConnectivitiesError(Exception):
+    pass
+
 # raise an exception for return values < 0
 def _check(int ret, name='?', errclass=RuntimeError):
     if ret < 0:
@@ -409,7 +412,11 @@ cdef class WV_Wrapper:
         num_points = len(points)/3
 
         #Check that triangles use valid point indices
-        _check(wv_checkConnectivities(num_points, ntris, &tris[0]), "wv_checkConnectivities")
+        _check(
+            wv_checkConnectivities(num_points, ntris, &tris[0]),
+            name="wv_checkConnectivities",
+            errclass=ConnectivitiesError
+            )
 
         # vertices 
         _check(wv_setData(WV_REAL32, len(points)/3, &points[0], WV_VERTICES, &items[0]),

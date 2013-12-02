@@ -6,7 +6,7 @@ import shutil
 
 import numpy as np
 
-from pyV3D import WV_Wrapper
+from pyV3D import WV_Wrapper, ConnectivitiesError
 from pyV3D.cube import CubeGeometry, CubeSender
 from pyV3D.stl import STLSender
 
@@ -105,10 +105,16 @@ class PyV3DTestCase(unittest.TestCase):
         #Connectivites should not refecerence points outside of bounds [0,len(points)/3)
         bad_triangles = np.array([[1,2,3],[2,3,4]], dtype=int).flatten()
         wrapper = WV_Test_Wrapper("random_garbage")
-        
-        
-        wrapper.set_face_data(points=points, tris=good_triangles, name="kermit")
-        wrapper.set_face_data(points, bad_triangles)
+       
+        try:
+            wrapper.set_face_data(points=points, tris=good_triangles)
+        except RuntimeError:
+            pass
+
+        try:
+            wrapper.set_face_data(points, bad_triangles)
+        except ConnectivitiesError:
+            pass
             
 if __name__ == "__main__":
     unittest.main()

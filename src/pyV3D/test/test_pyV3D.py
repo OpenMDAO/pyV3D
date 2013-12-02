@@ -104,15 +104,12 @@ class PyV3DTestCase(unittest.TestCase):
 
         #Connectivites should not refecerence points outside of bounds [0,len(points)/3)
         bad_triangles = np.array([[1,2,3],[2,3,4]], dtype=int).flatten()
-        wrapper = WV_Test_Wrapper("random_garbage")
-       
-        try:
-            wrapper.set_face_data(points=points, tris=good_triangles)
-        except RuntimeError:
-            pass
+        wrapper = WV_Test_Wrapper()
+        sender = CubeSender(wrapper) 
+        wrapper.set_face_data(points=points, tris=good_triangles, name="good")
 
         try:
-            wrapper.set_face_data(points, bad_triangles)
+            wrapper.set_face_data(points, bad_triangles, name="bad")
         except ConnectivitiesError:
             pass
             

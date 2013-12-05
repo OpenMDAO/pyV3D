@@ -86,7 +86,24 @@ class PyV3DTestCase(unittest.TestCase):
         with open(newname) as f:
             newcontent = f.read()
         self._compare(content, newcontent, cname, newname)
-        
+    
+    def test_binary_stl(self):
+        cname = os.path.join(self.path, 'knot.bin')
+        newname = os.path.join(self.tdir, 'knot.bin')
+
+        sender = STLSender(WV_test_Wrapper(newname))
+
+        import pdb
+        pdb.set_trace()
+        sender.send(os.path.join(self.path, 'knot.stl'), first=True)
+        sender.wv.binfile.close()
+
+        with open(cname) as f:
+            content = f.read()
+        with open(newname) as f:
+            newcontent = f.read()
+        self._compare(content, newcontent, cname, newname)
+
     def test_checkConnectivities(self):
         '''
         Test for geometry with a single face with 4 points and two triangles

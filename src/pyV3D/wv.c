@@ -344,7 +344,7 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct)
 
 
 void
-wv_adjustVerts(wvData *dstruct, float *focus)
+wv_adjustVerts(wvData *dstruct, float *focus, int DEBUG)
 {
   int   i;
   float *fptr;
@@ -360,10 +360,13 @@ wv_adjustVerts(wvData *dstruct, float *focus)
     fptr[3*i  ] /= focus[3];
     fptr[3*i+1] /= focus[3];
     fptr[3*i+2] /= focus[3];
+    
+    if(!DEBUG){
+        printf("Point[%d]=(%f,%f,%f)\n", i, fptr[3*i], fptr[3*i+1], fptr[3*i+2]);
+    }
   }
 
 }
-
 
 static void
 wv_fixupLineData(wvGPrim *gp, int nstripe, wvStripe *stripes, int *lmark, int bias)
@@ -2691,7 +2694,7 @@ wv_finishSends(wvContext *cntxt)
   cntxt->ioAccess = 0;
 }
 
-void wv_focusVertices(int nVerts, float *vertices, float *focus)
+void wv_focusVertices(int nVerts, float *vertices, float *focus, int DEBUG)
 {
     int i;
 
@@ -2703,10 +2706,14 @@ void wv_focusVertices(int nVerts, float *vertices, float *focus)
         vertices[3*i  ] /= focus[3];
         vertices[3*i+1] /= focus[3];
         vertices[3*i+2] /= focus[3];
+
+        if(!DEBUG){
+            printf("Point[%d]=(%f,%f,%f)\n", i, vertices[3*i], vertices[3*i+1], vertices[3*i+2]);    
+        }
     }
 }
 
-float * wv_getBoundingBox(int nGPrims, wvGPrim *gPrims, float *bbox)
+float * wv_getBoundingBox(int nGPrims, wvGPrim *gPrims, float *bbox, int DEBUG)
 {
     float x,y,z;
     int i,j;
@@ -2740,22 +2747,37 @@ float * wv_getBoundingBox(int nGPrims, wvGPrim *gPrims, float *bbox)
         }
     }
 
+    if(!DEBUG){
+        for(i=0; i<6; i++){
+            printf("bbox[%d]=%f\n", i, bbox[i]);
+        }
+    }
+
     return bbox;
 }
 
-float * wv_getFocus(float * bbox, float *focus){
-    float size = bbox[3] - bbox[0];
+float * wv_getFocus(float * bbox, float *focus, int DEBUG){
+    float size = bbox[0] - bbox[3];
 
-    if( size < (bbox[4] - bbox[1]))
-       size = bbox[4] - bbox[1];
+    if( size < (bbox[1] - bbox[4])){
+       size = bbox[1] - bbox[4];
+    }
 
-    if(size < (bbox[5] - bbox[2]))
-        size = bbox[5] - bbox[2];
+    if(size < (bbox[2] - bbox[5])){
+        size = bbox[2] - bbox[5];
+    }
 
     focus[0] = 0.5*(bbox[0] + bbox[3]);
     focus[1] = 0.5*(bbox[1] + bbox[4]);
     focus[2] = 0.5*(bbox[2] + bbox[5]);
     focus[3] = size;
+
+    if(!DEBUG){
+        int i;
+        for(i=0; i<4; i++){
+            printf("focus[%d]=%f\n", i, focus[i]);
+        }
+    }
 
     return focus;
 }

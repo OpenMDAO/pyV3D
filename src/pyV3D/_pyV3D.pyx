@@ -154,13 +154,13 @@ cdef extern from "wv.h":
     int wv_addArrowHeads(wvContext *cntxt, int index, float size, 
                          int nHeads, int *heads)
 
-    void wv_adjustVerts(wvData *dstruct, float *focus)
+    void wv_adjustVerts(wvData *dstruct, float *focus, int DEBUG)
 
-    void wv_focusVertices(int nVerts, float *vertices, float *focus)
+    void wv_focusVertices(int nVerts, float *vertices, float *focus, int DEBUG)
 
-    float * wv_getBoundingBox(int nGPrims, wvGPrim * gPrims, float *bbox)
+    float * wv_getBoundingBox(int nGPrims, wvGPrim * gPrims, float *bbox, int DEBUG)
 
-    float * wv_getFocus(float *bbox, float *focus)
+    float * wv_getFocus(float *bbox, float *focus, int DEBUG)
 
     void wv_setBias(wvContext *cntxt, int bias)
 
@@ -402,7 +402,7 @@ cdef class WV_Wrapper:
         cdef np.ndarray[np.float32_t, ndim=1, mode="c"] color
         cdef int bias
 
-        bias = self.context.bias
+        #bias = self.context.bias
         
 
         attr = make_attr(visible=visible, 
@@ -416,17 +416,17 @@ cdef class WV_Wrapper:
         num_points = len(points)/3
 
         #Check that triangles use valid point indices
-        _check(
-            wv_checkConnectivities(num_points, ntris, &tris[0], bias),
-            name="wv_checkConnectivities",
-            errclass=ConnectivitiesError
-            )
+        #_check(
+        #    wv_checkConnectivities(num_points, ntris, &tris[0], bias),
+        #    name="wv_checkConnectivities",
+        #    errclass=ConnectivitiesError
+        #    )
 
         # vertices 
         _check(wv_setData(WV_REAL32, len(points)/3, &points[0], WV_VERTICES, &items[0]),
                "wv_setData")
         #if bbox:
-        #    wv_adjustVerts(&items[0], _get_focus(bbox, focus))
+        #    wv_adjustVerts(&items[0], _get_focus(bbox, focus), 0)
 
         # triangles
         _check(wv_setData(WV_INT32, 3*ntris, &tris[0], WV_INDICES, &items[1]),
@@ -547,7 +547,7 @@ cdef class WV_Wrapper:
         _check(wv_setData(WV_REAL32, 2*head, &xyzs[0], WV_VERTICES, &items[0]),
             "wv_setData")
         #if bbox:
-        #    wv_adjustVerts(&items[0], _get_focus(bbox, focus))
+        #    wv_adjustVerts(&items[0], _get_focus(bbox, focus), 0)
  
         # line colors
         if colors is None:
@@ -579,15 +579,15 @@ cdef class WV_Wrapper:
          
         nGPrim = self.context.nGPrim
         gPrim = self.context.gPrims
-
-        wv_getBoundingBox(nGPrim, &gPrim[0], &boundingBox[0])
-        wv_getFocus(&boundingBox[0], &focus[0])
+        
+        wv_getBoundingBox(nGPrim, &gPrim[0], &boundingBox[0], 0)
+        wv_getFocus(&boundingBox[0], &focus[0], 0)
        
         for i in range(nGPrim):
             nVerts = gPrim[i].nVerts
             vertices = gPrim[i].vertices
 
-            wv_focusVertices(nVerts, &vertices[0], &focus[0])
+            wv_focusVertices(nVerts, &vertices[0], &focus[0], 0)
 
     def set_context_bias(self, int bias):
         cdef wvContext * context

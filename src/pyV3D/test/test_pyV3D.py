@@ -9,6 +9,7 @@ import numpy as np
 from pyV3D import WV_Wrapper, ConnectivitiesError
 from pyV3D.cube import CubeGeometry, CubeSender
 from pyV3D.stl import STLSender
+from pyV3D import get_bounding_box
 
 class WV_Test_Wrapper(WV_Wrapper):
     pass
@@ -58,6 +59,19 @@ class PyV3DTestCase(unittest.TestCase):
             if s1[i] != s2[i]:
                 self.fail("byte %d (at least) differs between files %s and %s. (%s != %s)" % 
                               (i, name1, name2, s1[i], s2[i]))
+
+    def test_bounding_box(self):
+        a = np.array([[-1,-1,-1],[1,1,1]],dtype=np.float32)
+        b = np.array([[1,1,1],[2,2,2]],dtype=np.float32)
+        
+        bbox = get_bounding_box(a.flatten())
+        self.assertTrue((a[::-1]==bbox).all())
+        
+        bbox = get_bounding_box(b.flatten())
+        self.assertTrue((b[::-1]==bbox).all())
+
+        bbox2 = get_bounding_box(bbox.flatten())
+        self.assertTrue((bbox2==bbox).all())
 
     def test_cube(self):
         cname = os.path.join(self.path, 'cube.bin')

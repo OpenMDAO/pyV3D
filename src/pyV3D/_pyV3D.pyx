@@ -231,7 +231,102 @@ def _check(int ret, name='?', errclass=RuntimeError):
         raise errclass("ERROR: return value of %d from function '%s'" % (ret, name))
     return ret
     
-    
+class GraphicsPrimitive(object):
+    def __init__(self, points=None,
+                       colors=None,
+                       name="",
+                       bounding_box=None,
+                       is_visible=True,
+                       is_transparent=False,
+                       has_shading=False,
+                       has_orientation=True,
+                       points_visible=False,
+                       lines_visible=False):
+
+        self.points=points
+        self.colors=colors
+        self.name=name
+        self.bbox=bounding_box
+        self.visible=is_visible
+        self.transparency=is_transparent
+        self.shading=has_shading
+        self.orientation=has_orientation
+        self.points_visible=points_visible
+        self.lines_visible=lines_visible
+
+    @property
+    def data(self):
+        return self.__dict__
+
+    def add_primitive_to_context(self, wv_wrapper):
+        pass
+
+class Triangle(GraphicsPrimitive):
+    def __init__( self, points=None,
+                        tris=None,
+                        colors=None,
+                        normals=None,
+                        name="",
+                        bbox=None,
+                        visible=True,
+                        transparency=False,
+                        shading=False,
+                        orientation=True,
+                        points_visible=False,
+                        lines_visible=False):
+        
+        super(Triangle, self).__init__(
+                                        points,
+                                        colors,
+                                        name,
+                                        bbox,
+                                        visible,
+                                        transparency,
+                                        shading,
+                                        orientation,
+                                        points_visible,
+                                        lines_visible)
+                                        
+        self.tris=tris
+        self.normals=normals
+
+    def add_primitive_to_context(self, wv_wrapper):
+        wv_wrapper.add_triangle(
+                                self.points, self.tris, self.colors,
+                                self.normals, self.name, self.bbox,
+                                self.visible, self.transparency, self.shading,
+                                self.orientation, self.points_visible, self.lines_visible)
+
+class Line(GraphicsPrimitive):
+    def __init__( self, points=None,
+                        colors=None,
+                        name="",
+                        bounding_box=None,
+                        is_visible=True,
+                        is_transparent=False,
+                        has_shading=False,
+                        has_orientation=False,
+                        points_visible=False,
+                        lines_visible=False):
+
+        super(Line, self).__init__(
+                                        points,
+                                        colors,
+                                        name,
+                                        bounding_box,
+                                        is_visible,
+                                        is_transparent,
+                                        has_shading,
+                                        has_orientation,
+                                        points_visible,
+                                        lines_visible)
+
+    def add_primitive_to_context(self, wv_wrapper):
+        wv_wrapper.add_line(
+                                self.points, self.colors,
+                                self.name, self.bbox,
+                                self.visible, self.transparency, self.shading,
+                                self.orientation, self.points_visible, self.lines_visible)
 
 cdef class WV_Wrapper:
 
@@ -245,7 +340,10 @@ cdef class WV_Wrapper:
         """Frees the memory for the wvContext object"""
         if self.context != NULL:
             wv_destroyContext(&self.context)
-        
+    
+    def __init__(self):
+        self.graphics_primitives=[]
+
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
     def createContext(self, bias, fov, zNear, zFar, 
@@ -294,6 +392,7 @@ cdef class WV_Wrapper:
     def clear(self):
         '''Remove all GPrim data.'''
         wv_removeAll(self.context)
+        self.graphics_primitives=[]
 
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
@@ -328,10 +427,28 @@ cdef class WV_Wrapper:
         '''
         
         wv_removeGPrim(self.context, index)
-        
+        self.graphics_primitives.remove(index)
+         
         
     def prepare_for_sends(self):
-        self.focus_vertices()
+        bounding_boxes = np.array([], dtype=np.float32)
+        
+        for primitive in self.graphics_primitives:
+            if not primitive.bbox:
+                primitive.bbox = get_bounding_box(primitive.points)
+                    
+            bounding_boxes = np.append(bounding_boxes, primitive.bbox)
+
+        bounding_box = get_bounding_box(bounding_boxes.flatten())
+        focus = get_focus(bounding_box.flatten())
+
+        for primitive in self.graphics_primitives:
+            for index in range(len(primitive.points)/3):
+                point=primitive.points[index*3:index*3+3]
+                primitive.points[index*3:index*3+3] =  adjust_point(focus, point)
+
+            primitive.add_primitive_to_context(self)
+        #self.focus_vertices()
         '''The server needs to call this before sending GPrim info.'''
 
         wv_prepareForSends(self.context)
@@ -342,8 +459,61 @@ cdef class WV_Wrapper:
         
         wv_finishSends(self.context)
 
-
     def set_face_data(self,  np.ndarray[np.float32_t, mode="c"] points not None,
+                             np.ndarray[int, mode="c"] tris not None,
+                             np.ndarray[np.float32_t, mode="c"] colors=None,
+                             np.ndarray[np.float32_t, mode="c"] normals=None,
+                             name='',
+                             bbox=None,
+                             visible=True,
+                             transparency=False,
+                             shading=False,
+                             orientation=True,
+                             points_visible=False,
+                             lines_visible=False):
+        
+        self.graphics_primitives.append(
+                            Triangle(
+                                points=points,
+                                tris=tris,
+                                colors=colors,
+                                normals=normals,
+                                name=name,
+                                bbox=bbox,
+                                visible=visible,
+                                transparency=transparency,
+                                shading=shading,
+                                orientation=orientation,
+                                points_visible=points_visible,
+                                lines_visible=lines_visible)
+                        )
+
+    def set_edge_data(self,  np.ndarray[np.float32_t, mode="c"] points not None,
+                             np.ndarray[np.float32_t, mode="c"] colors=None,
+                             name='',
+                             bbox=None,
+                             visible=True,
+                             transparency=False,
+                             shading=False,
+                             orientation=False,
+                             points_visible=False,
+                             lines_visible=False):
+        
+        self.graphics_primitives.append(
+                            Line(
+                                points,
+                                colors,
+                                name,
+                                bbox,
+                                visible,
+                                transparency,
+                                shading,
+                                orientation,
+                                points_visible,
+                                lines_visible)
+                        )
+
+    def add_triangle(self,  np.ndarray[np.float32_t, mode="c"] points not None,
                              np.ndarray[int, mode="c"] tris not None,
                              np.ndarray[np.float32_t, mode="c"] colors=None,
                              np.ndarray[np.float32_t, mode="c"] normals=None,
@@ -473,7 +643,7 @@ cdef class WV_Wrapper:
             self.context.gPrims[igprim].lWidth = 1.0
 
 
-    def set_edge_data(self,  
+    def add_line(self,  
                       np.ndarray[np.float32_t, mode="c"] points not None,
                       np.ndarray[np.float32_t, mode="c"] colors=None,
                       name='',
@@ -589,6 +759,7 @@ cdef class WV_Wrapper:
 
             wv_focusVertices(nVerts, &vertices[0], &focus[0], 0)
 
+
     def set_context_bias(self, int bias):
         cdef wvContext * context
         
@@ -596,3 +767,54 @@ cdef class WV_Wrapper:
         wv_setBias(&context[0], bias)
 
 
+def get_bounding_box(points):
+    x_min = x_max = points[0]
+    y_min = y_max = points[1]
+    z_min = z_max = points[2]
+
+
+    for index in range(len(points)/3):
+        x = points[index*3]
+        y = points[index*3+1]
+        z = points[index*3+2]
+
+        x_min = min(x, x_min)
+        y_min = min(y, y_min)
+        z_min = min(z, z_min)
+       
+        x_max = max(x, x_max)
+        y_max = max(y, y_max)
+        z_max = max(z, z_max)
+
+    return np.array([[x_max, y_max, z_max], [x_min, y_min, z_min]],dtype=np.float32)
+
+def get_focus(bounding_box):
+    x_max = bounding_box[0]
+    y_max = bounding_box[1]
+    z_max = bounding_box[2]
+
+    x_min = bounding_box[3]
+    y_min = bounding_box[4]
+    z_min = bounding_box[5]
+
+    x_center = 0.5*(x_max + x_min)
+    y_center = 0.5*(y_max + y_min)
+    z_center = 0.5*(z_max + z_min)
+
+    max_coordinate_magnitude = abs(x_max - x_center)
+    max_coordinate_magnitude = max(abs(y_max - y_center), max_coordinate_magnitude)
+    max_coordinate_magnitude = max(abs(z_max - z_center), max_coordinate_magnitude)
+
+    return np.array([x_center, y_center, z_center, max_coordinate_magnitude], dtype=np.float32)
+     
+def adjust_point(focus, point):
+    x,y,z = point
+    x_center, y_center, z_center, max_magnitude = focus
+
+    x = (x - x_center) / max_magnitude
+    y = (y - y_center) / max_magnitude
+    z = (z - z_center) / max_magnitude
+
+    return np.array((x,y,z), dtype=np.float32)
+    
+    

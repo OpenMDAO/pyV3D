@@ -363,6 +363,7 @@ wv_adjustVerts(wvData *dstruct, float *focus, int DEBUG)
     
     if(!DEBUG){
         printf("Point[%d]=(%f,%f,%f)\n", i, fptr[3*i], fptr[3*i+1], fptr[3*i+2]);
+        fflush(stdout);
     }
   }
 
@@ -2708,7 +2709,8 @@ void wv_focusVertices(int nVerts, float *vertices, float *focus, int DEBUG)
         vertices[3*i+2] /= focus[3];
 
         if(!DEBUG){
-            printf("Point[%d]=(%f,%f,%f)\n", i, vertices[3*i], vertices[3*i+1], vertices[3*i+2]);    
+            printf("Point[%d]=(%f,%f,%f)\n", i, vertices[3*i], vertices[3*i+1], vertices[3*i+2]);
+            fflush(stdout);    
         }
     }
 }
@@ -2750,6 +2752,7 @@ float * wv_getBoundingBox(int nGPrims, wvGPrim *gPrims, float *bbox, int DEBUG)
     if(!DEBUG){
         for(i=0; i<6; i++){
             printf("bbox[%d]=%f\n", i, bbox[i]);
+            fflush(stdout);
         }
     }
 
@@ -2757,25 +2760,25 @@ float * wv_getBoundingBox(int nGPrims, wvGPrim *gPrims, float *bbox, int DEBUG)
 }
 
 float * wv_getFocus(float * bbox, float *focus, int DEBUG){
-    float size = bbox[0] - bbox[3];
-
-    if( size < (bbox[1] - bbox[4])){
-       size = bbox[1] - bbox[4];
-    }
-
-    if(size < (bbox[2] - bbox[5])){
-        size = bbox[2] - bbox[5];
-    }
-
+    float size;
+    int i;
+    
     focus[0] = 0.5*(bbox[0] + bbox[3]);
     focus[1] = 0.5*(bbox[1] + bbox[4]);
     focus[2] = 0.5*(bbox[2] + bbox[5]);
+
+    size = fabsf(bbox[0] - focus[0]);
+    for(i=0; i<6; i++){
+        size = fmax(size, fabsf(bbox[i] - focus[i%3])); 
+    }
+
     focus[3] = size;
 
     if(!DEBUG){
         int i;
         for(i=0; i<4; i++){
             printf("focus[%d]=%f\n", i, focus[i]);
+            fflush(stdout);
         }
     }
 

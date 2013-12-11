@@ -440,12 +440,19 @@ cdef class WV_Wrapper:
             bounding_boxes = np.append(bounding_boxes, primitive.bbox)
 
         bounding_box = get_bounding_box(bounding_boxes.flatten())
-        focus = get_focus(bounding_box.flatten())
-
+        x_center, y_center, z_center, max_coordinate = get_focus(bounding_box.flatten())
+        
         for primitive in self.graphics_primitives:
-            for index in range(len(primitive.points)/3):
-                point=primitive.points[index*3:index*3+3]
-                primitive.points[index*3:index*3+3] =  adjust_point(focus, point)
+            #primitive.points[::3]  = primitive.points[::3]  - x_center
+            #primitive.points[1::3] = primitive.points[1::3] - y_center
+            #primitive.points[2::3] = primitive.points[2::3] - z_center
+            #for index in xrange(len(primitive.points)/3):
+            offset = np.tile((x_center, y_center, z_center),primitive.points.shape[0]/3)
+            primitive.points = primitive.points - offset
+            primitive.points = primitive.points/max_coordinate
+
+                #point=primitive.points[index*3:index*3+3]
+                #primitive.points[index*3:index*3+3] =  adjust_point(focus, point)
 
             primitive.add_primitive_to_context(self)
         #self.focus_vertices()

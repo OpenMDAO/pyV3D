@@ -160,13 +160,13 @@ void wv_destroyContext(wvContext **context);
     
 void wv_removeAll(wvContext *cntxt);
 
-void wv_adjustVerts(wvData *dstruct, float *focus, int DEBUG);
+void wv_adjustVerts(wvData *dstruct, float *focus);
 
-void wv_focusVertices(int nVerts, float *vertices, float *focus, int DEBUG);
+void wv_focusVertices(int nVerts, float *vertices, float *focus);
 
-float * wv_getBoundingBox(int nGPrims, wvGPrim *gPrims, float *bbox, int DEBUG);
+float * wv_getBoundingBox(int nGPrims, wvGPrim *gPrims, float *bbox);
 
-float * wv_getFocus(float * bbox, float *focus, int DEBUG);
+float * wv_getFocus(float * bbox, float *focus);
 
 void wv_setBias(wvContext *cntxt, int bias);
 

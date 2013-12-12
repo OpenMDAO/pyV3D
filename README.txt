@@ -47,11 +47,13 @@ cube.  To view an STL file, enter the name of the file, relative to the viewdir
 directory you specified when you ran the server.  You will only be able to view
 files that are under the viewdir directory.
 
-Once the image is displayed, you can rotate it by holding down CTRL and left clicking
-and dragging the mouse.  SHIFT + left click and drag will zoom the image.
+Once the image is displayed, keymappings for controls can be found by clicking
+the information button in the top right corner.
 
-
-Note: installing this package does not require cython. If you wish to change
-the pyV3D cython code, then you will need to install cython and run it on the src/pyV3D/_pyV3D.pyx file before running 'python setup.py build'.
+Note: installing this package does not require cython. If you have cython
+installed, it will automatically be used to build pyV3D. If you do not have
+cython installed and wish to change the pyV3D cython code, then you will need
+to install cython and run it on the src/pyV3D/_pyV3D.pyx file before running
+'python setup.py build'.
 
 

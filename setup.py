@@ -1,5 +1,4 @@
 import sys
-import os
 import setuptools
 
 try:
@@ -9,16 +8,8 @@ except ImportError:
     print 'numpy was not found.  Aborting build'
     sys.exit(-1)
 
-srcs = [
-    "src/pyV3D/_pyV3D.c",
-    "src/pyV3D/wv.c"
-]
-
-config = Configuration(name="pyV3D")
-config.add_extension("_pyV3D", sources=srcs)
-
 kwds = {'version': '0.4.2',
-        'install_requires':['numpy', 'tornado', 'argparse'],
+        'install_requires': ['numpy', 'tornado', 'argparse'],
         'author': '',
         'author_email': '',
         'classifiers': ['Intended Audience :: Science/Research',
@@ -31,8 +22,8 @@ kwds = {'version': '0.4.2',
         'maintainer': 'Kenneth T. Moore',
         'maintainer_email': 'kenneth.t.moore-1@nasa.gov',
         'package_data': {
-               'pyV3D': ['wvclient/*.html', 'wvclient/WebViewer/*.js'],
-               'pyV3D.test': ['*.stl', '*.bin']
+            'pyV3D': ['wvclient/*.html', 'wvclient/WebViewer/*.js'],
+            'pyV3D.test': ['*.stl', '*.bin']
         },
         'package_dir': {'': 'src'},
         'packages': ['pyV3D', 'pyV3D.test'],
@@ -42,10 +33,27 @@ kwds = {'version': '0.4.2',
             'console_scripts': [
                "wvserver=pyV3D.wvserver:main"
             ]
-         }
-       }
+        }}
 
+try:
+    from Cython.Build import cythonize
+except:
+    USE_CYTHON = False
+    file_extension = ".c"
+else:
+    USE_CYTHON = True
+    file_extension = ".pyx"
+
+srcs = [
+    "src/pyV3D/_pyV3D{0}".format(file_extension),
+    "src/pyV3D/wv.c"
+]
+
+config = Configuration(name="pyV3D")
+config.add_extension("_pyV3D", sources=srcs)
 kwds.update(config.todict())
 
+if USE_CYTHON:
+    kwds["ext_modules"] = cythonize(kwds['ext_modules'])
+    
 setup(**kwds)
-

@@ -154,13 +154,13 @@ cdef extern from "wv.h":
     int wv_addArrowHeads(wvContext *cntxt, int index, float size, 
                          int nHeads, int *heads)
 
-    void wv_adjustVerts(wvData *dstruct, float *focus, int DEBUG)
+    void wv_adjustVerts(wvData *dstruct, float *focus)
 
-    void wv_focusVertices(int nVerts, float *vertices, float *focus, int DEBUG)
+    void wv_focusVertices(int nVerts, float *vertices, float *focus)
 
-    float * wv_getBoundingBox(int nGPrims, wvGPrim * gPrims, float *bbox, int DEBUG)
+    float * wv_getBoundingBox(int nGPrims, wvGPrim * gPrims, float *bbox)
 
-    float * wv_getFocus(float *bbox, float *focus, int DEBUG)
+    float * wv_getFocus(float *bbox, float *focus)
 
     void wv_setBias(wvContext *cntxt, int bias)
 
@@ -183,7 +183,9 @@ cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
 
    
 cdef float* _get_focus(bbox, float focus[4]):
-    
+    import warnings
+    warnings.warn("pyV3D._get_focus is deprecated", warnings.DeprecatedWarning) 
+
     size = bbox[3] - bbox[0]
     if (size < bbox[4]-bbox[1]):
         size = bbox[4] - bbox[1]
@@ -761,6 +763,27 @@ cdef class WV_Wrapper:
         # leave it out for now
         #if head != 0:
         #    wv_addArrowHeads(self.context, igprim, 0.05, 1, &head)
+     
+    def focus_vertices(self):
+        import warnings
+        warnings.warn("pyV3D.focus_vertices is deprecated", warnings.DeprecatedWarning)
+        cdef float boundingBox[6]
+        cdef float focus[4]
+        cdef float * vertices
+        cdef int nGPrim, nVerts
+        cdef wvGPrim * gPrim
+         
+        nGPrim = self.context.nGPrim
+        gPrim = self.context.gPrims
+
+        wv_getBoundingBox(nGPrim, &gPrim[0], &boundingBox[0])
+        wv_getFocus(&boundingBox[0], &focus[0])
+       
+        for i in range(nGPrim):
+            nVerts = gPrim[i].nVerts
+            vertices = gPrim[i].vertices
+
+            wv_focusVertices(nVerts, &vertices[0], &focus[0])
 
     def set_context_bias(self, int bias):
         cdef wvContext * context

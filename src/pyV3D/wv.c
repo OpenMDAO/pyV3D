@@ -344,7 +344,7 @@ wv_setData(int type, int len, void *data, int VBOtype, wvData *dstruct)
 
 
 void
-wv_adjustVerts(wvData *dstruct, float *focus, int DEBUG)
+wv_adjustVerts(wvData *dstruct, float *focus)
 {
   int   i;
   float *fptr;
@@ -360,11 +360,14 @@ wv_adjustVerts(wvData *dstruct, float *focus, int DEBUG)
     fptr[3*i  ] /= focus[3];
     fptr[3*i+1] /= focus[3];
     fptr[3*i+2] /= focus[3];
-    
+   
+#if DEBUG 
     if(!DEBUG){
         printf("Point[%d]=(%f,%f,%f)\n", i, fptr[3*i], fptr[3*i+1], fptr[3*i+2]);
         fflush(stdout);
     }
+#endif
+
   }
 
 }
@@ -2695,7 +2698,7 @@ wv_finishSends(wvContext *cntxt)
   cntxt->ioAccess = 0;
 }
 
-void wv_focusVertices(int nVerts, float *vertices, float *focus, int DEBUG)
+void wv_focusVertices(int nVerts, float *vertices, float *focus)
 {
     int i;
 
@@ -2708,14 +2711,17 @@ void wv_focusVertices(int nVerts, float *vertices, float *focus, int DEBUG)
         vertices[3*i+1] /= focus[3];
         vertices[3*i+2] /= focus[3];
 
+#ifdef DEBUG
         if(!DEBUG){
             printf("Point[%d]=(%f,%f,%f)\n", i, vertices[3*i], vertices[3*i+1], vertices[3*i+2]);
             fflush(stdout);    
         }
+#endif
+
     }
 }
 
-float * wv_getBoundingBox(int nGPrims, wvGPrim *gPrims, float *bbox, int DEBUG)
+float * wv_getBoundingBox(int nGPrims, wvGPrim *gPrims, float *bbox)
 {
     float x,y,z;
     int i,j;
@@ -2749,17 +2755,19 @@ float * wv_getBoundingBox(int nGPrims, wvGPrim *gPrims, float *bbox, int DEBUG)
         }
     }
 
+#ifdef DEBUG
     if(!DEBUG){
         for(i=0; i<6; i++){
             printf("bbox[%d]=%f\n", i, bbox[i]);
             fflush(stdout);
         }
     }
+#endif
 
     return bbox;
 }
 
-float * wv_getFocus(float * bbox, float *focus, int DEBUG){
+float * wv_getFocus(float * bbox, float *focus){
     float size;
     int i;
     
@@ -2774,6 +2782,7 @@ float * wv_getFocus(float * bbox, float *focus, int DEBUG){
 
     focus[3] = size;
 
+#ifdef DEBUG
     if(!DEBUG){
         int i;
         for(i=0; i<4; i++){
@@ -2781,6 +2790,7 @@ float * wv_getFocus(float * bbox, float *focus, int DEBUG){
             fflush(stdout);
         }
     }
+#endif
 
     return focus;
 }

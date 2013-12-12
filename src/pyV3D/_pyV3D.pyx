@@ -184,7 +184,7 @@ cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
    
 cdef float* _get_focus(bbox, float focus[4]):
     import warnings
-    warnings.warn("pyV3D._get_focus is deprecated", warnings.DeprecatedWarning) 
+    warnings.warn("pyV3D._get_focus is deprecated", DeprecationWarning) 
 
     size = bbox[3] - bbox[0]
     if (size < bbox[4]-bbox[1]):
@@ -766,7 +766,7 @@ cdef class WV_Wrapper:
      
     def focus_vertices(self):
         import warnings
-        warnings.warn("pyV3D.focus_vertices is deprecated", warnings.DeprecatedWarning)
+        warnings.warn("pyV3D.focus_vertices is deprecated", DeprecationWarning)
         cdef float boundingBox[6]
         cdef float focus[4]
         cdef float * vertices

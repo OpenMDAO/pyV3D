@@ -183,7 +183,9 @@ cdef int callback(void *wsi, unsigned char *buf, int ibuf, void *f):
 
    
 cdef float* _get_focus(bbox, float focus[4]):
-    
+    import warnings
+    warnings.warn("pyV3D._get_focus is deprecated", DeprecationWarning) 
+
     size = bbox[3] - bbox[0]
     if (size < bbox[4]-bbox[1]):
         size = bbox[4] - bbox[1]
@@ -222,6 +224,105 @@ def make_attr(visible=False,
 
     return attr
 
+class GraphicsPrimitive(object):
+    def __init__(self, points=None,
+                       colors=None,
+                       name="",
+                       bounding_box=None,
+                       is_visible=True,
+                       is_transparent=False,
+                       has_shading=False,
+                       has_orientation=True,
+                       points_visible=False,
+                       lines_visible=False,
+                       focus=None):
+
+        self.points=points
+        self.colors=colors
+        self.name=name
+        self.bbox=bounding_box
+        self.visible=is_visible
+        self.transparency=is_transparent
+        self.shading=has_shading
+        self.orientation=has_orientation
+        self.points_visible=points_visible
+        self.lines_visible=lines_visible
+        self.focus=focus
+
+    def add_primitive_to_context(self, wv_wrapper):
+        pass
+
+class Triangle(GraphicsPrimitive):
+    def __init__( self, points=None,
+                        tris=None,
+                        colors=None,
+                        normals=None,
+                        name="",
+                        bbox=None,
+                        visible=True,
+                        transparency=False,
+                        shading=False,
+                        orientation=True,
+                        points_visible=False,
+                        lines_visible=False,
+                        focus=None):
+        
+        super(Triangle, self).__init__(
+                                        points,
+                                        colors,
+                                        name,
+                                        bbox,
+                                        visible,
+                                        transparency,
+                                        shading,
+                                        orientation,
+                                        points_visible,
+                                        lines_visible,
+                                        focus)
+                                        
+        self.tris=tris
+        self.normals=normals
+
+    def add_primitive_to_context(self, wv_wrapper):
+        wv_wrapper.add_triangle(
+                                self.points, self.tris, self.colors,
+                                self.normals, self.name, self.bbox.flatten(),
+                                self.visible, self.transparency, self.shading,
+                                self.orientation, self.points_visible, self.lines_visible,
+                                focus=self.focus)
+
+class Line(GraphicsPrimitive):
+    def __init__( self, points=None,
+                        colors=None,
+                        name="",
+                        bounding_box=None,
+                        is_visible=True,
+                        is_transparent=False,
+                        has_shading=False,
+                        has_orientation=False,
+                        points_visible=False,
+                        lines_visible=False,
+                        focus=None):
+
+        super(Line, self).__init__(
+                                    points,
+                                    colors,
+                                    name,
+                                    bounding_box,
+                                    is_visible,
+                                    is_transparent,
+                                    has_shading,
+                                    has_orientation,
+                                    points_visible,
+                                    lines_visible)
+
+    def add_primitive_to_context(self, wv_wrapper):
+        wv_wrapper.add_line(
+                                self.points, self.colors,
+                                self.name, self.bbox.flatten(),
+                                self.visible, self.transparency, self.shading,
+                                self.orientation, self.points_visible, self.lines_visible,
+                                self.focus)
 class ConnectivitiesError(Exception):
     pass
 
@@ -231,8 +332,6 @@ def _check(int ret, name='?', errclass=RuntimeError):
         raise errclass("ERROR: return value of %d from function '%s'" % (ret, name))
     return ret
     
-    
-
 cdef class WV_Wrapper:
 
     cdef wvContext* context
@@ -245,7 +344,10 @@ cdef class WV_Wrapper:
         """Frees the memory for the wvContext object"""
         if self.context != NULL:
             wv_destroyContext(&self.context)
-        
+    
+    def __init__(self):
+        self.graphics_primitives=[]
+
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
     def createContext(self, bias, fov, zNear, zFar, 
@@ -294,6 +396,7 @@ cdef class WV_Wrapper:
     def clear(self):
         '''Remove all GPrim data.'''
         wv_removeAll(self.context)
+        self.graphics_primitives=[]
 
     #@cython.boundscheck(False)
     #@cython.wraparound(False)        
@@ -328,10 +431,40 @@ cdef class WV_Wrapper:
         '''
         
         wv_removeGPrim(self.context, index)
-        
+        self.graphics_primitives.remove(index)
+         
         
     def prepare_for_sends(self):
-        self.focus_vertices()
+        bounding_boxes = np.array([], dtype=np.float32)
+        
+        for primitive in self.graphics_primitives:
+            if not primitive.bbox:
+                primitive.bbox = get_bounding_box(primitive.points)
+                    
+            bounding_boxes = np.append(bounding_boxes, primitive.bbox)
+
+        bounding_box = get_bounding_box(bounding_boxes.flatten())
+        focus = get_focus(bounding_box.flatten())
+
+        for primitive in self.graphics_primitives:
+            primitive.bbox = bounding_box
+            primitive.focus = primitive.focus
+
+        
+        for primitive in self.graphics_primitives:
+            #primitive.points[::3]  = primitive.points[::3]  - x_center
+            #primitive.points[1::3] = primitive.points[1::3] - y_center
+            #primitive.points[2::3] = primitive.points[2::3] - z_center
+            #for index in xrange(len(primitive.points)/3):
+            #offset = np.tile((x_center, y_center, z_center),primitive.points.shape[0]/3)
+            #primitive.points = primitive.points - offset
+            #primitive.points = primitive.points/max_coordinate
+            #primitive.points = adjust_points(focus, primitive.points)
+                #point=primitive.points[index*3:index*3+3]
+                #primitive.points[index*3:index*3+3] =  adjust_point(focus, point)
+
+            primitive.add_primitive_to_context(self)
+        #self.focus_vertices()
         '''The server needs to call this before sending GPrim info.'''
 
         wv_prepareForSends(self.context)
@@ -341,7 +474,6 @@ cdef class WV_Wrapper:
         '''The server needs to call this before sending GPrim info.'''
         
         wv_finishSends(self.context)
-
 
     def set_face_data(self,  np.ndarray[np.float32_t, mode="c"] points not None,
                              np.ndarray[int, mode="c"] tris not None,
@@ -355,6 +487,61 @@ cdef class WV_Wrapper:
                              orientation=True,
                              points_visible=False,
                              lines_visible=False):
+        
+        self.graphics_primitives.append(
+                            Triangle(
+                                points=points,
+                                tris=tris,
+                                colors=colors,
+                                normals=normals,
+                                name=name,
+                                bbox=bbox,
+                                visible=visible,
+                                transparency=transparency,
+                                shading=shading,
+                                orientation=orientation,
+                                points_visible=points_visible,
+                                lines_visible=lines_visible)
+                        )
+
+    def set_edge_data(self,  np.ndarray[np.float32_t, mode="c"] points not None,
+                             np.ndarray[np.float32_t, mode="c"] colors=None,
+                             name='',
+                             bbox=None,
+                             visible=True,
+                             transparency=False,
+                             shading=False,
+                             orientation=False,
+                             points_visible=False,
+                             lines_visible=False):
+        
+        self.graphics_primitives.append(
+                            Line(
+                                points,
+                                colors,
+                                name,
+                                bbox,
+                                visible,
+                                transparency,
+                                shading,
+                                orientation,
+                                points_visible,
+                                lines_visible)
+                        )
+
+    def add_triangle(self,  np.ndarray[np.float32_t, mode="c"] points not None,
+                             np.ndarray[int, mode="c"] tris not None,
+                             np.ndarray[np.float32_t, mode="c"] colors=None,
+                             np.ndarray[np.float32_t, mode="c"] normals=None,
+                             name='',
+                             bbox=None,
+                             visible=True,
+                             transparency=False,
+                             shading=False,
+                             orientation=True,
+                             points_visible=False,
+                             lines_visible=False,
+                             focus=None):
         """
         Set up VBO data for a face.
         
@@ -395,7 +582,6 @@ cdef class WV_Wrapper:
                 Set to true to turn on display of edges
         """
         cdef int attr
-        cdef float focus[4]
         cdef char *gpname
         cdef wvData items[6]
         cdef np.ndarray[np.int32_t, ndim=1, mode="c"] segs
@@ -422,11 +608,15 @@ cdef class WV_Wrapper:
             errclass=ConnectivitiesError
             )
 
+        if focus != None:
+            points = adjust_points(focus, points)
+            
+        elif bbox != None:
+            points = adjust_points(get_focus(bbox), points)
+
         # vertices 
         _check(wv_setData(WV_REAL32, len(points)/3, &points[0], WV_VERTICES, &items[0]),
                "wv_setData")
-        #if bbox:
-        #    wv_adjustVerts(&items[0], _get_focus(bbox, focus))
 
         # triangles
         _check(wv_setData(WV_INT32, 3*ntris, &tris[0], WV_INDICES, &items[1]),
@@ -473,7 +663,7 @@ cdef class WV_Wrapper:
             self.context.gPrims[igprim].lWidth = 1.0
 
 
-    def set_edge_data(self,  
+    def add_line(self,  
                       np.ndarray[np.float32_t, mode="c"] points not None,
                       np.ndarray[np.float32_t, mode="c"] colors=None,
                       name='',
@@ -483,7 +673,8 @@ cdef class WV_Wrapper:
                       shading=False,
                       orientation=False,
                       points_visible=False,
-                      lines_visible=False):
+                      lines_visible=False,
+                      focus=None):
         """
         Set up VBO data for an edge.
 
@@ -517,7 +708,6 @@ cdef class WV_Wrapper:
             lines_visible: bool
                 Set to true to turn on display of edges
        """
-        cdef float focus[4]
         cdef char *gpname
         cdef int head, attr
         cdef wvData items[5]
@@ -543,11 +733,15 @@ cdef class WV_Wrapper:
             xyzs[6*nseg+4] = points[3*nseg+4]
             xyzs[6*nseg+5] = points[3*nseg+5]
 
+        if focus != None:
+            points = adjust_points(focus, points)
+            
+        elif bbox != None:
+            points = adjust_points(get_focus(bbox), points)
+
         # vertices 
         _check(wv_setData(WV_REAL32, 2*head, &xyzs[0], WV_VERTICES, &items[0]),
             "wv_setData")
-        #if bbox:
-        #    wv_adjustVerts(&items[0], _get_focus(bbox, focus))
  
         # line colors
         if colors is None:
@@ -569,8 +763,10 @@ cdef class WV_Wrapper:
         # leave it out for now
         #if head != 0:
         #    wv_addArrowHeads(self.context, igprim, 0.05, 1, &head)
-
+     
     def focus_vertices(self):
+        import warnings
+        warnings.warn("pyV3D.focus_vertices is deprecated", DeprecationWarning)
         cdef float boundingBox[6]
         cdef float focus[4]
         cdef float * vertices
@@ -596,3 +792,50 @@ cdef class WV_Wrapper:
         wv_setBias(&context[0], bias)
 
 
+def get_bounding_box(points):
+    x_min = x_max = points[0]
+    y_min = y_max = points[1]
+    z_min = z_max = points[2]
+
+
+    for index in xrange(points.shape[0]/3):
+        x = points[index*3]
+        y = points[index*3+1]
+        z = points[index*3+2]
+
+        x_min = min(x, x_min)
+        y_min = min(y, y_min)
+        z_min = min(z, z_min)
+       
+        x_max = max(x, x_max)
+        y_max = max(y, y_max)
+        z_max = max(z, z_max)
+
+    return np.array([[x_max, y_max, z_max], [x_min, y_min, z_min]],dtype=np.float32)
+
+def get_focus(bounding_box):
+    x_max = bounding_box[0]
+    y_max = bounding_box[1]
+    z_max = bounding_box[2]
+
+    x_min = bounding_box[3]
+    y_min = bounding_box[4]
+    z_min = bounding_box[5]
+
+    x_center = 0.5*(x_max + x_min)
+    y_center = 0.5*(y_max + y_min)
+    z_center = 0.5*(z_max + z_min)
+
+    max_coordinate_magnitude = abs(x_max - x_center)
+    max_coordinate_magnitude = max(abs(y_max - y_center), max_coordinate_magnitude)
+    max_coordinate_magnitude = max(abs(z_max - z_center), max_coordinate_magnitude)
+
+    return np.array([x_center, y_center, z_center, max_coordinate_magnitude], dtype=np.float32)
+     
+def adjust_points(focus, points):
+    x_center, y_center, z_center, max_coordinate = focus
+    offset = np.tile((x_center, y_center, z_center),points.shape[0]/3)
+    points = points - offset
+    points = points/max_coordinate
+
+    return points

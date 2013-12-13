@@ -139,8 +139,8 @@ class STLGeometryObject(object):
             max_x = max(max_x, vertices[i*3])
             min_y = min(min_y, vertices[i*3+1])
             max_y = max(max_y, vertices[i*3+1])
-            min_z = min(min_y, vertices[i*3+2])
-            max_z = max(max_y, vertices[i*3+2])
+            min_z = min(min_z, vertices[i*3+2])
+            max_z = max(max_z, vertices[i*3+2])
             
         return [max_x, max_y, max_z, min_x, min_y, min_z]
 

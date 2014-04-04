@@ -1,5 +1,6 @@
 import sys
 import setuptools
+import os
 
 try:
     from numpy.distutils.core import setup
@@ -35,25 +36,21 @@ kwds = {'version': '0.4.3',
             ]
         }}
 
-try:
-    from Cython.Build import cythonize
-except:
-    USE_CYTHON = False
-    file_extension = ".c"
-else:
+USE_CYTHON = False
+srcs = [os.path.join("src", "pyV3D", "_pyV3D.c"),
+        os.path.join("src", "pyV3D", "wv.c"),
+        ]
+
+if sys.argv[1] == "develop":
     USE_CYTHON = True
-    file_extension = ".pyx"
-
-srcs = [
-    "src/pyV3D/_pyV3D{0}".format(file_extension),
-    "src/pyV3D/wv.c"
-]
-
+    srcs[0] = "{}{}".format(srcs[0][:-2], ".pyx")
+    
 config = Configuration(name="pyV3D")
 config.add_extension("_pyV3D", sources=srcs)
 kwds.update(config.todict())
 
 if USE_CYTHON:
+    from Cython.Build import cythonize
     kwds["ext_modules"] = cythonize(kwds['ext_modules'])
-    
+
 setup(**kwds)

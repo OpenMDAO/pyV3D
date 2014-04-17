@@ -9,7 +9,7 @@ except ImportError:
     print 'numpy was not found.  Aborting build'
     sys.exit(-1)
 
-kwds = {'version': '0.4.3',
+kwds = {'version': '0.4.4',
         'install_requires': ['numpy', 'tornado', 'argparse'],
         'author': '',
         'author_email': '',
